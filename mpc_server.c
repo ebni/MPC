@@ -67,12 +67,6 @@
 #define PRINT_MAT
 */
 
-/* Filename with the problem formulation */
-#ifdef PRINT_PROBLEM
-#define PROB_FILENAME "glpk_mpc.txt"
-#define SOL_FILENAME "glpk_sol.txt"
-#endif
-
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
@@ -112,11 +106,6 @@ int main(int argc, char *argv[]) {
 	mpc_status * cur_st;
 #endif
 
-#ifdef HAVE_OBSTACLE
-	/* TO BE FIXED: ADDED TO JSON FILE?? */
-	double center[] = OBSTACLE_CENTER;
-	double radius[] = OBSTACLE_RADIUS;
-#endif
 	int model_fd;
 	char * buffer;
 	ssize_t size;
@@ -299,11 +288,6 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 {
 	mpc_glpk *my_mpc;
 	size_t i;
-#ifdef PRINT_PROBLEM
-	char s_file[100] = PROB_FILENAME;
-	char s_sol[100] = SOL_FILENAME;
-	char tmp[100];
-#endif
 
 	my_mpc = (mpc_glpk *)param;
 
@@ -311,20 +295,8 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 	gsl_vector_memcpy (my_mpc->x0, x);
 	mpc_update_x0(my_mpc);
 
-#ifdef PRINT_PROBLEM
-	/* DEBUG ONLY: Writing the GLPK formulation in CPLEX form */
-	sprintf(tmp, "%02lu", k);
-	strcat(tmp, s_file);
-	glp_write_lp(my_mpc->op, NULL, tmp);
-#endif
-
-#ifdef HAVE_OBSTACLE
-	glp_simplex(my_mpc->op, my_mpc->param);
-	glp_intopt(my_mpc->op, NULL);
-#else
 	/* Solve it by Simplex method */
 	glp_simplex(my_mpc->op, my_mpc->param);
-#endif
 
 	/* Getting the solution. FIXME: need a more efficient way */
 	for (i = 0; i < my_mpc->model->m; i++) {
@@ -332,30 +304,10 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 			       glp_get_col_prim(my_mpc->op,
 						my_mpc->v_U+(int)i));
 	}
-
-#ifdef PRINT_PROBLEM
-	/* DEBUG ONLY: get the U0 from the solution. For the moment
-	   just printing */
-	/*glp_print_prob(my_mpc->op); */
-	sprintf(tmp, "%02lu", k);
-	strcat(tmp, s_sol);
-	glp_print_sol(my_mpc->op, tmp);
-#endif	
-
 }
 
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 {
-#ifdef HAVE_OBSTACLE
-	/* TO BE FIXED: ADDED TO JSON FILE?? */
-	double center[] = OBSTACLE_CENTER;
-	double radius[] = OBSTACLE_RADIUS;
-#endif
-#ifdef INIT_X0_JSON
-	size_t i;
-	struct json_object *tmp_elem, *elem;
-#endif
-
 	/* Cleanup the MPC struct */
 	bzero(mpc,sizeof(*mpc));
 	
@@ -368,9 +320,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 #else
 	mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
 #endif
-#ifdef USE_DUAL
 	mpc->param->meth    = GLP_DUAL;    /* dual simplex */
-#endif
 
 #if 1
 	mpc->param->it_lim  = INT_MAX;     /* max num of iterations */
@@ -401,46 +351,9 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	
 	/* Set a minimization cost for the MPC */
 	mpc_goal_set(mpc, in);
- 
-#ifdef HAVE_OBSTACLE
-	/* Add the obstacle */
-	mpc_state_obstacle_add(mpc, center, radius);
-#ifdef PRINT_PROBLEM
-	/* DEBUG ONLY: Writing the GLPK formulation in CPLEX form */
-	glp_write_lp(mpc->op, NULL, "problem_obstacle.txt");
-#endif
 
-#endif
-
-#ifdef INIT_X0_JSON
-	/* 
-	 * Get the initial state from JSON, store it in the MPC
-	 * struct, and update the problem accordingly
-	 */
-	if (!json_object_object_get_ex(in, "state_init", &tmp_elem)) {
-		PRINT_ERROR("missing state_init in JSON");
-		return -1;
-	}
-	if ((size_t)json_object_array_length(tmp_elem) != mpc->model->n) {
-		PRINT_ERROR("wrong size of state_init in JSON");
-		return -1;
-	}
-	mpc->x0 = gsl_vector_calloc(mpc->model->n);
-	for (i=0; i < mpc->model->n; i++) {
-		elem = json_object_array_get_idx(tmp_elem, (int)i);
-		errno = 0;
-		mpc->x0->data[i] = json_object_get_double(elem);
-		if (errno) {
-			fprintf(stderr, "%i\n", (int)i);
-			PRINT_ERROR("issues in converting element in state_init");
-			return -1;
-		}
-	}
-	mpc_update_x0(mpc);
-#else
+	/* Warm the solver up with initial state equal to zero */
 	mpc_warmup(mpc);
-#endif
-
 	
 	/* 
 	 * Setting the max delta constraint, assuming an initial zero

@@ -694,7 +694,6 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 {
 	struct json_object * cost, *tmp;
 	const char * type_str;
-
 	
 	/* Get the cost model of the MPC */
 	if (!json_object_object_get_ex(in, "cost_model", &cost)) {
@@ -755,12 +754,12 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 		coef = json_object_get_double(tmp);
 
 		/* Setting objective function */
-		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H)");
+		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H) and L_1 norm of inputs");
 		glp_set_obj_dir(mpc->op, GLP_MIN);
 		cur = 1;
 		for (j = 0; j < mpc->model->H; j++) {
 			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X+(int)j, cur);
-			cur *= coef;
+			cur *= coef; /* increasing cost for future states */
 		}
 
 		/* Get the weight of each input */
@@ -779,7 +778,7 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 			errno = 0;
 			cur = json_object_get_double(elem);
 			if (errno) {
-				fprintf(stderr, "Error at index %i\n", (int)i);
+				fprintf(stderr, "Error at index %i\n", (int)j);
 				PRINT_ERROR("issues in converting element of state weight");
 				return;
 			}

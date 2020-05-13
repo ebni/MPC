@@ -3,6 +3,14 @@ CFLAGS = -pedantic -Werror -Wall -W -Wmissing-prototypes -Wstrict-prototypes -Wc
 
 LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk
 
+.PHONY: clean
+
+mpc_server: mpc_server.o mpc.o dyn.o
+	gcc mpc_server.o mpc.o dyn.o $(LDFLAGS) -o mpc_server
+
+mpc_client: mpc_client.o mpc.o dyn.o
+	gcc mpc_client.o mpc.o dyn.o $(LDFLAGS) -o mpc_client
+
 mpc.o: mpc.c mpc.h Makefile
 	gcc -c mpc.c $(CFLAGS) -o mpc.o
 
@@ -18,8 +26,3 @@ dyn.o: dyn.c dyn.h Makefile
 clean:
 	rm -rf *.o *~ mpc mpc_server mpc_client
 
-mpc_server: mpc_server.o mpc.o dyn.o
-	gcc mpc_server.o mpc.o dyn.o -L$(LIBDIR) $(LDFLAGS) -o mpc_server
-
-mpc_client: mpc_client.o mpc.o dyn.o
-	gcc mpc_client.o mpc.o dyn.o -L$(LIBDIR) $(LDFLAGS) -o mpc_client

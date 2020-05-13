@@ -68,12 +68,6 @@
 #define USE_SERVER
 */
 
-/* Filename with the problem formulation */
-#ifdef PRINT_PROBLEM
-#define PROB_FILENAME "glpk_mpc.txt"
-#define SOL_FILENAME "glpk_sol.txt"
-#endif
-
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
