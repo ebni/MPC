@@ -27,7 +27,6 @@
 #define USE_DUAL
 #define CLIENT_SOLVER
 #define PRINT_LOG
-#define DEBUG_SIMPLEX
 
 /*
  * Below are some #define which trigger something:
@@ -162,6 +161,7 @@ int main(int argc, char *argv[]) {
 	servaddr.sin_family = AF_INET;  
 	if (bind(listenfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1)
 		PRINT_ERROR("issue in bind");
+	printf("MPC server up and running: listening behind port %d\n", port);
 
 	/* Pin the server to CPU 0 */
 	CPU_ZERO(&my_mask);
