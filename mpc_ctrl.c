@@ -1,13 +1,6 @@
-#include <stdlib.h>
-#include <limits.h> 
-#include <stdio.h>
-#include <unistd.h>
-#include <time.h>
-#include <fcntl.h>
-#include <string.h>
-#include "common.h"
-#include "mpc.h"
+#include "mpc_interface.h"
 
+#define PRINT_LOG
 /*
  * Below are some #define which trigger something:
  *
@@ -35,71 +28,86 @@
 */
 
 /*
- * argv[1], file descr of the pipe read end (where the states are recv)
- * argv[2], file descr of the pipe write end (where the inpute are sent)
- * argv[3], filename of the JSON file of the model
+ * argv[1], filename of the JSON file of the model
  */
+
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <signal.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <stdlib.h>
+#include <limits.h> 
+#include <stdio.h>
+#include <unistd.h>
+#include <time.h>
+#include <fcntl.h>
+#include <string.h>
+#ifdef USE_SERVER
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif /* USE_SERVER */
+#include "mpc.h"
 
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
+
+#ifdef USE_SERVER
+#define SOLVER_IP "127.0.0.1"  /* must be IP address of the MPC server */
+#define SOLVER_PORT 6001     /* must be the same of the MPC server */
+#define CLIENT_SOLVER
+#endif /* USE_SERVER */
+
+/* GLOBAL VARIABLES (used in handler) */
+int shm_id;
+
 
 /*
  * Initializing the model with JSON file
  */
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 
-
+/*
+ * Signal handler (Ctrl-C). This process will terminate only on Ctrl-C
+ */
+void term_handler(int signum);
 
 int main(int argc, char * argv[]) {
-	mpc_status * mpc_st;
-	int fd_rd, fd_wr;
-	mpc_glpk uav_mpc;
-#ifdef USE_SERVER
-	struct sockaddr_in servaddr;
-#endif
-
+	struct shared_data * data;
+	double * shared_state;
+	double * shared_input;
 	int model_fd;
 	char * buffer;
-	ssize_t size, num_bytes;
+	ssize_t size;
 	size_t i;
 
 	struct json_object *model_json;
 	struct json_tokener * tok;
 
-	/* Messages sent/received */
-	struct msg_to_mpc   msg_recv;
-	struct msg_from_mpc msg_sent;
+	struct sigaction sa;
+
+	mpc_status * mpc_st;
+	mpc_glpk my_mpc;
 #ifdef USE_SERVER
-	int steps_serv;
-	double time_serv;
+	int sockfd;
+	struct sockaddr_in servaddr;
 #endif
 #ifdef PRINT_PROBLEM
 	char s_sol[100] = SOL_FILENAME;
 	char tmp[100];
 #endif
 
-#ifdef USE_SERVER
-	if (argc <= 4) {
-		PRINT_ERROR("Too few arguments. 4 needed: <read fd> <write fd> <JSON model> <server IP>");
+
+	if (argc <= 1) {
+		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
 		return -1;
 	}
-#else
-	if (argc <= 3) {
-		PRINT_ERROR("Too few arguments. 3 needed: <read fd> <write fd> <JSON model>");
-		return -1;
-	}
-#endif /* USE_SERVER */
 
-	/* Getting file descr of the pipe */
-	fd_rd = atoi(argv[1]);
-	fd_wr = atoi(argv[2]);
-
-	/* FIXME: need a check on number of input arguments, argc,
-	   etc. (copy code from mpc_client) */
-	
 	/* Reading the JSON file with the problem model */
-	if ((model_fd = open(argv[3], O_RDONLY)) == -1) {
+	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
 		PRINT_ERROR("Missing/wrong file");
 		return -1;
 	}
@@ -115,37 +123,69 @@ int main(int argc, char * argv[]) {
 	model_json = json_tokener_parse_ex(tok, buffer, (int)size);
 	free(buffer);
 
+	/* Setting up the signal handler for termination */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = term_handler;
+	sigaction(SIGHUP, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGPIPE, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
 	/* Initializing the model */
-	model_mpc_startup(&uav_mpc, model_json);
+	model_mpc_startup(&my_mpc, model_json);
+
+ 	/* 
+	 * Shared memory is used to read state from and write input to
+	 * UAV. Allocating enough space for both the struct
+	 * shared_data and the two arrays for state/input.
+	 */
+	shm_id = shmget(MPC_SHM_KEY,
+			sizeof(*data)+
+			sizeof(*shared_state)*my_mpc.model->n+
+			sizeof(*shared_input)*my_mpc.model->m,
+			MPC_SHM_FLAGS | IPC_CREAT | IPC_EXCL);
+	if (shm_id == -1) {
+		PRINT_ERROR("Unable to create shared memory. Maybe key in use");
+		exit(EXIT_FAILURE);
+	}
+	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	shared_state = (double*)(data+1); /* starts just after *data */
+	shared_input = shared_state+my_mpc.model->n;
+	bzero(data, sizeof(*data)+
+	      sizeof(*shared_state)*my_mpc.model->n+
+	      sizeof(*shared_input)*my_mpc.model->m);
+	data->state_num = my_mpc.model->n;
+	data->input_num = my_mpc.model->m;
+	
+	/* Resetting all semaphores */
+	for (i=0; i<MPC_SEM_NUM; i++) {
+		if (sem_init(data->sems+i,1,0) < 0) {
+			PRINT_ERROR("issue in sem_init");
+			exit(EXIT_FAILURE);
+		}
+	}
+	
 #ifdef PRINT_PROBLEM
-	glp_print_sol(uav_mpc.op, "000glpk_sol.txt");
+	glp_print_sol(my_mpc.op, "000glpk_sol.txt");
 #endif
 
-	/* Checking consistency between problem size and messages size */
-	if (STATE_NUM != uav_mpc.model->n) {
-		PRINT_ERROR("Size of state mismatch");
-		return -1;
-	}
-	if (INPUT_NUM != uav_mpc.model->m) {
-		PRINT_ERROR("Size of input mismatch");
-		return -1;
-	}
-
 	/* Allocating struct of solver status after problem defined */
-	mpc_st = mpc_status_alloc(&uav_mpc);
+	mpc_st = mpc_status_alloc(&my_mpc);
 	  
+#ifdef PRINT_PROBLEM
 	/* Save initial status */
-	mpc_status_save(&uav_mpc, mpc_st);
+	mpc_status_save(&my_mpc, mpc_st);
 	fprintf(stdout, "Initial status\n");
-	mpc_status_fprintf(stdout, &uav_mpc, mpc_st);
- 	glp_write_lp(uav_mpc.op, NULL, "initial_mpc.txt");
-	glp_print_sol(uav_mpc.op, "initial_sol.txt");
+	mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+ 	glp_write_lp(my_mpc.op, NULL, "initial_mpc.txt");
+	glp_print_sol(my_mpc.op, "initial_sol.txt");
+#endif
 
 #ifdef USE_SERVER
 	/* Setting up the client: server to connect to */
 	bzero(&servaddr, sizeof(servaddr)); 
-	servaddr.sin_addr.s_addr = inet_addr(argv[3]);
-	servaddr.sin_port = htons(PORT_SOLVER);
+	servaddr.sin_addr.s_addr = inet_addr(SOLVER_IP);
+	servaddr.sin_port = htons(SOLVER_PORT);
 	servaddr.sin_family = AF_INET;
       
 	/* create and connect UPD socket */
@@ -153,20 +193,24 @@ int main(int argc, char * argv[]) {
 	if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
 		PRINT_ERROR("client: error in connect");
 #endif
-	
-	while ((num_bytes = read(fd_rd, &msg_recv, sizeof(msg_recv)))) {
+
+	/* Cycling forever to get the state from UAV. Ctrl-C will termina */
+	while (1) {
+		sem_wait(data->sems+MPC_SEM_STATE_WRITTEN);
+		/* Now the system wrote the state in data->state */
+
+#ifdef PRINT_LOG
 		/* Printing received message */
-		printf("Got message from %i, job %i\n",
-		       msg_recv.sender, msg_recv.job_id);
-		printf("At %f\n", (double)msg_recv.timestamp.tv_sec
-		       +(double)msg_recv.timestamp.tv_sec*1e-9);
+		printf("%s: Got state from plant. First val: %f\n",
+		       __FILE__, shared_state[0]);
+#endif /* PRINT_LOG */
 		
 		/* Store the state received to the problem status */
-		mpc_status_save(&uav_mpc, mpc_st);
-		memcpy(mpc_st->state, msg_recv.state,
-		       sizeof(*msg_recv.state)*STATE_NUM);
+		mpc_status_save(&my_mpc, mpc_st);
+		memcpy(mpc_st->state, shared_state,
+		       sizeof(*shared_state)*data->state_num);
 #ifdef USE_SERVER
-		*mpc_st->steps_bdg = 50;   /* number of max iterations */
+		*mpc_st->steps_bdg = 1000;   /* number of max iterations */
 		*mpc_st->time_bdg = 1000; /* max seconds (large value) */
 		*mpc_st->prim_stat = GLP_INFEAS;  /* changing x0 makes primal undef */
 		*mpc_st->dual_stat = GLP_FEAS;    /* should always be dual feasible */
@@ -175,65 +219,59 @@ int main(int argc, char * argv[]) {
 		send(sockfd, mpc_st->block, mpc_st->size, 0);
 		recv(sockfd, mpc_st->block, mpc_st->size, 0);
 		
-		/* Storing server used budgets */
-		steps_serv = *mpc_st->steps_bdg;
-		time_serv  = *mpc_st->time_bdg; 
-		gsl_vector_int_set(t->steps, k, steps_serv);
-		gsl_vector_set(t->time, k, time_serv);
 		
 #ifdef PRINT_PROBLEM
 		sprintf(tmp, "%02luA", k);
 		strcat(tmp, s_sol);
-		glp_print_sol(uav_mpc.op, tmp);
+		glp_print_sol(my_mpc.op, tmp);
 #endif
+#ifdef PRINT_LOG
 		/* Printing the status after the local computations */
-		fprintf(stdout, "\nServer steps: %d\n", steps_serv);
-		fprintf(stdout, "Server time: %f\n", time_serv);
+		/* Used budgets, for logging/debugging purpose */
+
+		/*
+		 * steps_serv = *mpc_st->steps_bdg;
+		 * time_serv  = *mpc_st->time_bdg; 
+		 */
+#endif /* PRINT_LOG */
 #endif /* USE SERVER */
 		/* giving ourself "infinite" time/iterations */
 		*mpc_st->steps_bdg = INT_MAX;
 		*mpc_st->time_bdg  = INT_MAX;
-		mpc_status_resume(&uav_mpc, mpc_st);
+		mpc_status_resume(&my_mpc, mpc_st);
 #ifdef PRINT_PROBLEM
 		sprintf(tmp, "%02luB", k);
 		strcat(tmp, s_sol);
-		glp_print_sol(uav_mpc.op, tmp);
+		glp_print_sol(my_mpc.op, tmp);
 #endif
-		glp_factorize(uav_mpc.op); /* INVESTIGATE: DONT KNOW IF USEFUL */
-		glp_simplex(uav_mpc.op, uav_mpc.param);
+		glp_factorize(my_mpc.op); /* INVESTIGATE: DONT KNOW IF USEFUL */
+		glp_simplex(my_mpc.op, my_mpc.param);
 		
 #ifdef PRINT_PROBLEM
 		sprintf(tmp, "%02luC", k);
 		strcat(tmp, s_sol);
-		glp_print_sol(uav_mpc.op, tmp);
+		glp_print_sol(my_mpc.op, tmp);
+		mpc_status_save(&my_mpc, mpc_st);
+		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 #endif	
-		
-		mpc_status_save(&uav_mpc, mpc_st);
-		mpc_status_fprintf(stdout, &uav_mpc, mpc_st);
 
 		/*
 		 * There is  a more efficient way  to make the steps  below by
 		 * something using
 		 *
-		 *   mpc_status_save(&uav_mpc, mpc_st);
+		 *   mpc_status_save(&my_mpc, mpc_st);
 		 */
 	
 		/* Getting the solution */
-		for (i = 0; i < INPUT_NUM; i++) {
-			msg_sent.input[i] =
-				glp_get_col_prim(uav_mpc.op,
-						 uav_mpc.v_U+(int)i);
+		for (i = 0; i < data->input_num; i++) {
+			shared_input[i] =
+				glp_get_col_prim(my_mpc.op,
+						 my_mpc.v_U+(int)i);
 		}
-		
-		/* Adding also PID and timestamp */
-		msg_sent.sender = getpid();
-		clock_gettime(CLOCK_MONOTONIC, &(msg_sent.timestamp));
-		
-		
-		write(fd_wr, &msg_sent, sizeof(msg_sent));
+
+		/* Now the input is ready for the UAV */
+		sem_post(data->sems+MPC_SEM_INPUT_WRITTEN);
 	}
-	
-	
 }
 
 
@@ -287,3 +325,11 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 
 	return 0;
 }
+
+void term_handler(int signum)
+{
+	/* Removing shared memory object */
+	shmctl(shm_id, IPC_RMID, NULL);
+	exit(0);          // this is a brute, working way
+}
+
