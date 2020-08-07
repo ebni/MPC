@@ -15,12 +15,6 @@
  *
  * 4. the input is available in the struct to be fed to the plant
  *
- * Based on  the characteristics of  the plant, the  following macros,
- * may need to be redefined:
- *
- * MPC_STATE_NUM, with the number of system states
- * MPC_INPUT_NUM, with the number of input to the system
- *
  * The shared memory is created and  removed by the MPC controller. In
  * case, the  default shared  memory key 0xC1A0  is already  used (for
  * example, because  another MPC controller  is up and  running), then
