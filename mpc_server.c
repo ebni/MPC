@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
+#include <limits.h>
 #include <json-c/json.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>

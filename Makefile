@@ -1,7 +1,12 @@
-# Suggested by GSL manual
-CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O2
 
-LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread
+# Working flags on the Pelican
+CFLAGS = -I../../usrlocal/include -pedantic -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g
+LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -L/home/asctec/usrlocal/lib -Wl,-rpath -Wl,/home/asctec/usrlocal/lib
+
+# Working flages elsewhere
+#CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O2
+#LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread
+
 
 .PHONY: clean
 
@@ -23,7 +28,7 @@ mpc.o: mpc.c mpc.h Makefile
 dyn.o: dyn.c dyn.h Makefile
 	gcc -c dyn.c $(CFLAGS) -o dyn.o
 
-all: mpc_server mpc_client mpc_shm_ctrl
+all: mpc_server mpc_client mpc_ctrl
 
 clean:
 	rm -rf *.o *~ mpc mpc_server mpc_client

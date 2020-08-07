@@ -330,6 +330,6 @@ void term_handler(int signum)
 {
 	/* Removing shared memory object */
 	shmctl(shm_id, IPC_RMID, NULL);
-	exit(0);          // this is a brute, working way
+	exit(0);          /* this is a brute, working way */
 }
 

@@ -496,9 +496,9 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
 		 gsl_matrix_free(L[i]);
 		*/
 	}
-	free(L);
+	/*	free(L);
 	free(ind);
-	free(val_up);
+	free(val_up); */
 /*	free(val_lo); */
 }
 
