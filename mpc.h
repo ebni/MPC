@@ -34,13 +34,17 @@ typedef struct {
  * the case of  MPC being solved by  GLPK, the state of  the solver is
  * modelled by the basic/non-basic/else status  of rows and columns of
  * the LP problem corresponding to the MPC.
+ *
+ * This data  structure has a  block of data,  which will be  send and
+ * received,  and several  pointers to  this block  of data,  used for
+ * convenience.
  */
 typedef struct {
 	double * state;        /* Initial state x0 */
 	double * input;        /* Input found */
 	uint32_t * row_stat;   /* Basic/non-basic status of rows */
 	uint32_t * col_stat;   /* Basic/non-basic status of columns */
-	int * steps_bdg;      /* steps budget. recv: avail. sent: consumed */
+	int * steps_bdg;       /* steps budget. recv: avail. sent: consumed */
 	double * time_bdg;     /* time budget (sec). recv: avail. sent: cons */
 	int * prim_stat;       /* primal status of the basis */
 	int * dual_stat;       /* dual status of the basis */

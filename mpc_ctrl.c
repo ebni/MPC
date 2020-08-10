@@ -1,11 +1,21 @@
+/*
+ * mpc_ctrl.c
+ *
+ * MPC controller. It must be initialized with a JSON model which must
+ * be passed as first parameter (argv[1]).
+ * Below the invocation arguments:
+ *
+ *   argv[1], filename of the JSON file describing th problem [MANDATORY]
+ *
+ *   argv[2],  IP  address  of  the  MPC  server  [OPTIONAL].  If  not
+ *   specified,  the  value  of  the macro  MPC_SOLVER_IP  defined  in
+ *   mpc_interface.h is assumed
+ */
 #include "mpc_interface.h"
 
 #define PRINT_LOG
 /*
  * Below are some #define which trigger something:
- *
- * CLIENT_SOLVER, expect UDP messages from a solver of the format as
- * in the struct mpc_status defined in mpc.h
  *
  * PRINT_LOG, print log information every time 
  *
@@ -15,21 +25,13 @@
  *
  * PRINT_MAT, print matrices (dont remember really how much stuff is
  * printed)
- *
- * USE_SERVER, offload to a server
  */
 /*
-#define CLIENT_SOLVER
 #define PRINT_LOG
 #define PRINT_PROBLEM
 #define DEBUG_SIMPLEX
 #define PRINT_MAT
-#define USE_SERVER
 */
-
-/*
- * argv[1], filename of the JSON file of the model
- */
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -44,22 +46,14 @@
 #include <time.h>
 #include <fcntl.h>
 #include <string.h>
-#ifdef USE_SERVER
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif /* USE_SERVER */
 #include "mpc.h"
 
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
-
-#ifdef USE_SERVER
-#define SOLVER_IP "127.0.0.1"  /* must be IP address of the MPC server */
-#define SOLVER_PORT 6001     /* must be the same of the MPC server */
-#define CLIENT_SOLVER
-#endif /* USE_SERVER */
 
 /* GLOBAL VARIABLES (used in handler) */
 int shm_id;
@@ -91,10 +85,8 @@ int main(int argc, char * argv[]) {
 
 	mpc_status * mpc_st;
 	mpc_glpk my_mpc;
-#ifdef USE_SERVER
 	int sockfd;
 	struct sockaddr_in servaddr;
-#endif
 #ifdef PRINT_PROBLEM
 	char s_sol[100] = SOL_FILENAME;
 	char tmp[100];
@@ -102,13 +94,13 @@ int main(int argc, char * argv[]) {
 
 
 	if (argc <= 1) {
-		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
+		PRINT_ERROR("Too few arguments. At least 1 needed: <JSON model>");
 		return -1;
 	}
 
 	/* Reading the JSON file with the problem model */
 	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
-		PRINT_ERROR("Missing/wrong file");
+		PRINT_ERROR("Missing/wrong JSON file");
 		return -1;
 	}
 	/* Getting the size of the file */
@@ -136,7 +128,7 @@ int main(int argc, char * argv[]) {
 
  	/* 
 	 * Shared memory is used to read state from and write input to
-	 * UAV. Allocating enough space for both the struct
+	 * the  plant. Allocating  enough  space for  both the  struct
 	 * shared_data and the two arrays for state/input.
 	 */
 	shm_id = shmget(MPC_SHM_KEY,
@@ -145,7 +137,7 @@ int main(int argc, char * argv[]) {
 			sizeof(*shared_input)*my_mpc.model->m,
 			MPC_SHM_FLAGS | IPC_CREAT | IPC_EXCL);
 	if (shm_id == -1) {
-		PRINT_ERROR("Unable to create shared memory. Maybe key in use");
+		PRINT_ERROR("Unable to create shared memory. Maybe key in use (try ipcs)");
 		exit(EXIT_FAILURE);
 	}
 	data = (struct shared_data *)shmat(shm_id, NULL, 0);
@@ -181,71 +173,76 @@ int main(int argc, char * argv[]) {
 	glp_print_sol(my_mpc.op, "initial_sol.txt");
 #endif
 
-#ifdef USE_SERVER
-	/* Setting up the client: server to connect to */
+	/* Setting up the socket to server */
 	bzero(&servaddr, sizeof(servaddr)); 
-	servaddr.sin_addr.s_addr = inet_addr(SOLVER_IP);
-	servaddr.sin_port = htons(SOLVER_PORT);
+	if (argc >= 3) {
+		/* using command-line arg as IP address */
+		servaddr.sin_addr.s_addr = inet_addr(argv[2]);
+	} else {
+		/* using the default IP address */
+		servaddr.sin_addr.s_addr = inet_addr(MPC_SOLVER_IP);
+	}
+	if (servaddr.sin_addr.s_addr == INADDR_NONE) {
+		PRINT_ERROR("invalid IP address");
+		exit(-1);
+	}
+	servaddr.sin_port = htons(MPC_SOLVER_PORT);
 	servaddr.sin_family = AF_INET;
       
 	/* create and connect UPD socket */
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
 	if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
 		PRINT_ERROR("client: error in connect");
-#endif
 
-	/* Cycling forever to get the state from UAV. Ctrl-C will termina */
+	/* 
+	 * Cycling forever to get the state of the plant. Ctrl-C will
+	 * terminate
+	 */
 	while (1) {
 		sem_wait(data->sems+MPC_SEM_STATE_WRITTEN);
-		/* Now the system wrote the state in data->state */
+		/* Now the system wrote the state in shared_state */
 
 #ifdef PRINT_LOG
 		/* Printing received message */
-		printf("%s: Got state from plant. First val: %f\n",
+		printf("%s: Got state from plant. First state: %f\n",
 		       __FILE__, shared_state[0]);
 #endif /* PRINT_LOG */
-		
-		/* Store the state received to the problem status */
+
+		/* Store the lastest solver status in mpc_st */
 		mpc_status_save(&my_mpc, mpc_st);
 		memcpy(mpc_st->state, shared_state,
 		       sizeof(*shared_state)*data->state_num);
-#ifdef USE_SERVER
-		*mpc_st->steps_bdg = 1000;   /* number of max iterations */
-		*mpc_st->time_bdg = 1000; /* max seconds (large value) */
-		*mpc_st->prim_stat = GLP_INFEAS;  /* changing x0 makes primal undef */
-		*mpc_st->dual_stat = GLP_FEAS;    /* should always be dual feasible */
-		
-		/* Sending/receiving status to/from server */
-		send(sockfd, mpc_st->block, mpc_st->size, 0);
-		recv(sockfd, mpc_st->block, mpc_st->size, 0);
-		
-		
+		*mpc_st->steps_bdg = INT_MAX;  /* max iterations */
+		*mpc_st->time_bdg = INT_MAX;   /* max seconds */
+		/* Setting the status of cur solution */
+		*mpc_st->prim_stat = GLP_INFEAS;
+		*mpc_st->dual_stat = GLP_FEAS;
+		if (data->flags & MPC_OFFLOAD) {
+			/* MPC offloaded to server */
+			
+			/* Sending/receiving status to/from server */
+			send(sockfd, mpc_st->block, mpc_st->size, 0);
+			recv(sockfd, mpc_st->block, mpc_st->size, 0);
+			/* 
+			 * After recv, the optimal input found by the
+			 * server is saved in mpc_st->input
+			 */
 #ifdef PRINT_PROBLEM
-		sprintf(tmp, "%02luA", k);
-		strcat(tmp, s_sol);
-		glp_print_sol(my_mpc.op, tmp);
+			sprintf(tmp, "%02luA", k);
+			strcat(tmp, s_sol);
+			glp_print_sol(my_mpc.op, tmp);
 #endif
-#ifdef PRINT_LOG
-		/* Printing the status after the local computations */
-		/* Used budgets, for logging/debugging purpose */
-
-		/*
-		 * steps_serv = *mpc_st->steps_bdg;
-		 * time_serv  = *mpc_st->time_bdg; 
-		 */
-#endif /* PRINT_LOG */
-#endif /* USE SERVER */
-		/* giving ourself "infinite" time/iterations */
-		*mpc_st->steps_bdg = INT_MAX;
-		*mpc_st->time_bdg  = INT_MAX;
-		mpc_status_resume(&my_mpc, mpc_st);
+		} else {
+			/* MPC runs locally */
+			mpc_status_resume(&my_mpc, mpc_st);
 #ifdef PRINT_PROBLEM
-		sprintf(tmp, "%02luB", k);
-		strcat(tmp, s_sol);
-		glp_print_sol(my_mpc.op, tmp);
+			sprintf(tmp, "%02luB", k);
+			strcat(tmp, s_sol);
+			glp_print_sol(my_mpc.op, tmp);
 #endif
-		glp_factorize(my_mpc.op); /* INVESTIGATE: DONT KNOW IF USEFUL */
-		glp_simplex(my_mpc.op, my_mpc.param);
+			glp_simplex(my_mpc.op, my_mpc.param);
+			mpc_status_save(&my_mpc, mpc_st);
+		}
 		
 #ifdef PRINT_PROBLEM
 		sprintf(tmp, "%02luC", k);
@@ -253,23 +250,11 @@ int main(int argc, char * argv[]) {
 		glp_print_sol(my_mpc.op, tmp);
 		mpc_status_save(&my_mpc, mpc_st);
 		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
-#endif	
+#endif
 
-		/*
-		 * There is  a more efficient way  to make the steps  below by
-		 * something using
-		 *
-		 *   mpc_status_save(&my_mpc, mpc_st);
-		 */
-	
-		/* Getting the solution */
-		for (i = 0; i < data->input_num; i++) {
-			shared_input[i] =
-				glp_get_col_prim(my_mpc.op,
-						 my_mpc.v_U+(int)i);
-		}
-
-		/* Now the input is ready for the UAV */
+		/* Write solution to shared mem and let the plant know */
+		memcpy(shared_input, mpc_st->input,
+		       sizeof(*shared_state)*data->input_num);
 		sem_post(data->sems+MPC_SEM_INPUT_WRITTEN);
 	}
 }

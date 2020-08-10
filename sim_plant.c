@@ -1,3 +1,10 @@
+/*
+ * sim_plant.c
+ *
+ * Code used to simulate a plant which starts from some given initial
+ * state and then it is controlled by MPC, possibly using the MPC
+ * server.
+ */
 #define _GNU_SOURCE
 #include <stdio.h> 
 #include <strings.h> 
@@ -21,10 +28,6 @@
 #include "dyn.h"
 #include "mpc.h"
 
-#define PORT_MATLAB 6004
-#define PORT_SOLVER 6001
-
-#define USE_DUAL
 #define INIT_X0_JSON
 
 /*
@@ -33,15 +36,7 @@
  * INIT_X0_JSON, expect a "state_init" in JSON and use it as state
  * initialization. Otherwise using state zero to initialize the problem
  *
- * CLIENT_SOLVER, expect UDP messages from a solver of the format as
- * in the struct mpc_status defined in mpc.h
- *
- * CLIENT_MATLAB, expect UPD messages from Matlab: receiving the plant
- * state x and sending the MPC optimal input u. That's is
- *
  * PRINT_LOG, print log information every time 
- *
- * USE_DUAL, use dual Simplex method (should be always set)
  *
  * PRINT_PROBLEM, print the problem formulation in txt files
  *
@@ -52,27 +47,20 @@
  *
  * PRINT_MAT, print matrices (dont remember really how much stuff is
  * printed)
- *
- * USE_SERVER, offload to a server
  */
 /*
 #define INIT_X0_JSON
-#define CLIENT_SOLVER
-#define CLIENT_MATLAB
 #define PRINT_LOG
 #define USE_DUAL
 #define PRINT_PROBLEM
 #define DEBUG_SIMPLEX
 #define HAVE_OBSTACLE
 #define PRINT_MAT
-#define USE_SERVER
 */
 
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
-
-#define DONTCARE 0 /* any constant to be ignored */
 
 /*
  * MPC controller
@@ -97,18 +85,13 @@ gsl_vector *x_k;
 /*
  * This is code should be invoked as:
  *
- * ./mpc_client <JSON model> <number of steps> <server IP>
+ * ./sim_plant <JSON model> <number of steps>
  *
- * to have the  MPC client solving the problem formulated  by the JSON
- * model <JSON  model> off loading to  the server at <server  IP>. The
- * port is  set by  a #define.  The simulation is  run for  <number of
- * steps> iterations.
+ * to simulate  a plant described by  the <JSON model> for  <number of
+ * steps>.
  */
 int main(int argc, char *argv[]) {
 	mpc_glpk uav_mpc;
-#ifdef USE_SERVER
-	struct sockaddr_in servaddr;
-#endif
 
 #ifdef HAVE_OBSTACLE
 	/* TO BE FIXED: ADDED TO JSON FILE?? */
@@ -125,17 +108,10 @@ int main(int argc, char *argv[]) {
 	struct json_object *model_json;
 	struct json_tokener * tok;
 
-#ifdef USE_SERVER
-	if (argc <= 3) {
-		PRINT_ERROR("Too few arguments. 3 needed: <JSON model> <number of steps> <server IP>");
-		return -1;
-	}
-#else
 	if (argc <= 2) {
 		PRINT_ERROR("Too few arguments. 2 needed: <JSON model> <number of steps>");
 		return -1;
 	}
-#endif /* USE_SERVER */
 
 	/* Getting number of steps to be simulated */
 	steps = (size_t)strtol(argv[2], NULL, 10);
@@ -157,16 +133,6 @@ int main(int argc, char *argv[]) {
 	close(model_fd);
 	tok = json_tokener_new();
 	model_json = json_tokener_parse_ex(tok, buffer, (int)size);
-#if 0	
-	enum json_tokener_error jerr;
-
-	if ((jerr = json_tokener_get_error(tok)) != json_tokener_continue) {
-		fprintf(stderr, "error string = %s\n",
-			json_tokener_error_desc(jerr));
-		PRINT_ERROR("error parsing JSON");
-		return -1;
-	}
-#endif
 	free(buffer);
 
 	/* Initializing the model */
@@ -186,19 +152,6 @@ int main(int argc, char *argv[]) {
  	glp_write_lp(uav_mpc.op, NULL, "initial_mpc.txt");
 	glp_print_sol(uav_mpc.op, "initial_sol.txt");
 
-#ifdef USE_SERVER
-	/* Setting up the client: server to connect to */
-	bzero(&servaddr, sizeof(servaddr)); 
-	servaddr.sin_addr.s_addr = inet_addr(argv[3]);
-	servaddr.sin_port = htons(PORT_SOLVER);
-	servaddr.sin_family = AF_INET;
-      
-	/* create and connect UPD socket */
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
-	if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
-		PRINT_ERROR("client: error in connect");
-#endif
-	
 	/* Allocating for a trace */ 
 	uav_trace = dyn_trace_alloc(uav_mpc.model->n, uav_mpc.model->m, steps);
 
@@ -236,76 +189,13 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param)
 {
 	mpc_glpk *my_mpc;
 	size_t i;
-#ifdef USE_SERVER
-	int steps_serv;
-	double time_serv;
-#endif
-#ifdef PRINT_PROBLEM
-	char s_sol[100] = SOL_FILENAME;
-	char tmp[100];
-#endif
 
 	my_mpc = (mpc_glpk *)param;
 
 	/* Get the current state from the k-th column of t->x */
 	gsl_matrix_get_col(x_k, t->x, k);
 
-	/* Prepare the status to be sent */
-	mpc_status_save(my_mpc, mpc_st);
-	memcpy(mpc_st->state, x_k->data, sizeof(*x_k->data)*my_mpc->model->n);
-#ifdef USE_SERVER
-	*mpc_st->steps_bdg = 50;   /* number of max iterations */
-	*mpc_st->time_bdg = 1000; /* max seconds (large value) */
-	*mpc_st->prim_stat = GLP_INFEAS;  /* changing x0 makes primal undef */
-	*mpc_st->dual_stat = GLP_FEAS;    /* should always be dual feasible */
-
-	/* Sending/receiving status to/from server */
-	send(sockfd, mpc_st->block, mpc_st->size, 0);
-	recv(sockfd, mpc_st->block, mpc_st->size, 0);
-
-	/* Storing server used budgets */
- 	steps_serv = *mpc_st->steps_bdg;
-	time_serv  = *mpc_st->time_bdg; 
-	gsl_vector_int_set(t->steps, k, steps_serv);
-	gsl_vector_set(t->time, k, time_serv);
-
-#ifdef PRINT_PROBLEM
-	sprintf(tmp, "%02luA", k);
-	strcat(tmp, s_sol);
-	glp_print_sol(my_mpc->op, tmp);
-#endif
-	/* Printing the status after the local computations */
-	fprintf(stdout, "\nServer steps: %d\n", steps_serv);
-	fprintf(stdout, "Server time: %f\n", time_serv);
-#endif /* USE SERVER */
-	/* giving ourself "infinite" time/iterations */
-	*mpc_st->steps_bdg = INT_MAX;
-	*mpc_st->time_bdg  = INT_MAX;
-	mpc_status_resume(my_mpc, mpc_st);
-#ifdef PRINT_PROBLEM
-	sprintf(tmp, "%02luB", k);
-	strcat(tmp, s_sol);
-	glp_print_sol(my_mpc->op, tmp);
-#endif
-	glp_factorize(my_mpc->op); /* INVESTIGATE: DONT KNOW IF USEFUL */
-	glp_simplex(my_mpc->op, my_mpc->param);
-	
-#ifdef PRINT_PROBLEM
-	sprintf(tmp, "%02luC", k);
-	strcat(tmp, s_sol);
-	glp_print_sol(my_mpc->op, tmp);
-#endif	
-
-	mpc_status_save(my_mpc, mpc_st);
-	mpc_status_fprintf(stdout, my_mpc, mpc_st);
-
-	/*
-	 * There is  a more efficient way  to make the steps  below by
-	 * something using
-	 *
-	 *   mpc_status_save(my_mpc, mpc_st);
-	 */
-
+	/* FIXME: invoke MPC  */
 	
 	/* Getting the solution */
 	for (i = 0; i < t->m; i++) {
@@ -315,9 +205,7 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param)
 	}
 
 	/* Store optimality of solution */
-	t->opt[k].prim = glp_get_prim_stat(my_mpc->op);
-	t->opt[k].dual = glp_get_dual_stat(my_mpc->op);
-
+	t->opt[k].time = /* FIXME: add time spent */
 }
 
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
@@ -343,9 +231,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 #else
 	mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
 #endif
-#ifdef USE_DUAL
 	mpc->param->meth    = GLP_DUAL;    /* dual simplex */
-#endif
 
 #if 1
 	mpc->param->it_lim  = INT_MAX;     /* max num of iterations */

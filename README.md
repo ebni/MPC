@@ -20,7 +20,7 @@ If all needed libraries are installed, then all compilation should properly happ
   * `trace_proc.c` is a used to trace the scheduling events of some processes. In the MPC context is used to monitor the schedule of MPC execution, although its usage is not strictly bound to MPC.
 
 #### Interface to the MPC controller
-The communication between any application and the MPC controller happens through a shared memory area. Such a memory area is the sequence of the following data structures:
+The communication between any application and the MPC controller happens through a shared memory area. Such a memory area is the concatenation of the following data structures:
 
 * A `struct shared_data` declared in `mpc_interface.h`. The struct is declared as follows
 ```

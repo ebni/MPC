@@ -42,11 +42,6 @@ typedef struct {
 	size_t H; /* horizon (in number of intervals) of dynamics */
 	gsl_matrix *x;   /* n times H+1 array of states (from x_0 to x_H */
 	gsl_matrix *u;   /* m times H array of inputs (from u_0 to u_{H-1} */
-	struct {
-		int prim; /* primal optimality */
-		int dual; /* dual optimality */
-	} * opt;
-	gsl_vector_int *steps; /* H-long vector. steps[i] steps for u[i] */
 	gsl_vector *time;      /* H-long vector. time[i] seconds for u[i] */
 } dyn_trace;
 

@@ -23,7 +23,7 @@ mpc.o: mpc.c mpc.h Makefile
 dyn.o: dyn.c dyn.h Makefile
 	gcc -c dyn.c $(CFLAGS) -o dyn.o
 
-all: mpc_server mpc_client mpc_shm_ctrl
+all: mpc_server mpc_client mpc_ctrl
 
 clean:
 	rm -rf *.o *~ mpc mpc_server mpc_client
