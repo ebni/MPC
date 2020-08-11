@@ -354,8 +354,6 @@ dyn_trace * dyn_trace_alloc(const size_t n, const size_t m, const size_t H)
 	t = calloc(1,sizeof(*t));
 	t->x = gsl_matrix_calloc(n, H+1);
 	t->u = gsl_matrix_calloc(m, H);
-	t->opt = calloc(H, sizeof(t->opt[0]));
-	t->steps = gsl_vector_int_calloc(H);
 	t->time = gsl_vector_calloc(H);
 	t->n = n;
 	t->m = m;
@@ -367,7 +365,6 @@ void dyn_trace_free(dyn_trace * t)
 {
 	gsl_matrix_free(t->x);
 	gsl_matrix_free(t->u);
-	free(t->opt);
 	gsl_vector_free(t->time);
 #ifdef NO_FREE
 
@@ -388,7 +385,6 @@ void dyn_plant_dynamics(const dyn_plant * p,
 	gsl_vector *x_next, *x_cur, *u_cur;
 	struct timespec tic, toc;
 	double time;
-	int steps;
 
 	x_next = gsl_vector_calloc(p->n);
 	x_cur  = gsl_vector_calloc(p->n);
@@ -402,24 +398,16 @@ void dyn_plant_dynamics(const dyn_plant * p,
 			gsl_matrix_set_col(t->u, i, u_cur);
 			gsl_vector_set_zero(x_next);
 
-			/* No control law, no time, no steps */
-			if (t->steps != NULL) {
-				gsl_vector_int_set(t->steps, i, 0);
-			}
+			/* No control law, no time */
 			if (t->time != NULL) {
 				gsl_vector_set(t->time, i, 0.0);
 			}
 		} else {
-			/* Getting steps and time of simplex */
-			steps = glp_get_it_cnt(((mpc_glpk *)param)->op);
+			/* Getting time of simplex */
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
 			/* Control law writes the input on i-th col of t->u */
 			ctrl_law(i, t, param);
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-			if (t->steps != NULL) {
-				steps = glp_get_it_cnt(((mpc_glpk *)param)->op) - steps;
-				*gsl_vector_int_ptr(t->steps, i) += steps;
-			}
 			if (t->time != NULL) {
 				time =  (double)(toc.tv_sec-tic.tv_sec);
 				time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;

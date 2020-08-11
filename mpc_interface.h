@@ -31,6 +31,9 @@
 #define MPC_SHM_KEY 0xC1A0  /* hard-coded key of shared mem SysV object */
 #define MPC_SHM_FLAGS 0666  /* we go easy: everybody reads and writes */
 
+#define MPC_CPU_ID 1        /* CPU where processes sharing memory reside */
+
+
 #define MPC_SEM_NUM            2
 #define MPC_SEM_STATE_WRITTEN  0   /* +1: plant; -1 MPC controller */
 #define MPC_SEM_INPUT_WRITTEN  1   /* +1: MPC controller; -1 plant */
@@ -40,13 +43,12 @@
  */
 #define MPC_OFFLOAD 0x01     /* if set, off-load MPC computation */
 
-
 /*
- * MPC server configuration parameters
+ * MPC server configuration parameters. The server IP may be
+ * overwritten by the command-line arguments of mpc_cltr.
  */
 #define MPC_SOLVER_IP   "127.0.0.1"  /* default IP is localhost */
 #define MPC_SOLVER_PORT 6001         /* default port is something random */
-
 
 struct shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
@@ -64,5 +66,15 @@ struct shared_data {
 	 *     used by MPC to communicate the input to the applciation
 	 */
 };
+
+/*
+ * The  following  two  macros  rispectively enable  and  disable  the
+ * offloading to the MPC server.  The  macro parameter is the "var" is
+ * a pointer  to a struct share_data  which should be declared  by the
+ * user.
+ */
+#define MPC_OFFLOAD_ENABLE(var)   var->flags |= MPC_OFFLOAD;
+#define MPC_OFFLOAD_DISABLE(var)  var->flags &= ~((uint32_t)MPC_OFFLOAD);
+
 
 #endif /* _MPC_INTERFACE_H_ */
