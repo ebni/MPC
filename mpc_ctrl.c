@@ -17,20 +17,16 @@
 /*
  * Below are some #define which trigger something:
  *
- * PRINT_LOG, print log information every time 
+ * PRINT_LOG, print log information at every iteration
  *
  * PRINT_PROBLEM, print the problem formulation in txt files
  *
  * DEBUG_SIMPLEX, turn on all Simplex messages for debugging
- *
- * PRINT_MAT, print matrices (dont remember really how much stuff is
- * printed)
  */
 /*
 #define PRINT_LOG
 #define PRINT_PROBLEM
 #define DEBUG_SIMPLEX
-#define PRINT_MAT
 */
 
 #include <sys/ipc.h>
@@ -66,7 +62,9 @@ int shm_id;
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 
 /*
- * Signal handler (Ctrl-C). This process will terminate only on Ctrl-C
+ * Signal handler. This process will terminate only on Ctrl-C. It will
+ * also terminate on other standard terminating signals. Upon process
+ * termination, the shared memory is removed.
  */
 void term_handler(int signum);
 
@@ -100,7 +98,15 @@ int main(int argc, char * argv[]) {
 	char s_sol[100] = SOL_FILENAME;
 	char tmp[100];
 #endif
-
+#ifdef PRINT_LOG
+	char * log_rec;
+	size_t offset_rec;
+	struct timespec after_wait, before_post;
+#define LOG_REC_SIZE (2*(30)+                   \
+		      15*data->state_num+	\
+		      15*data->input_num)	 
+#endif /* PRINT_LOG */
+	
 
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. At least 1 needed: <JSON model>");
@@ -204,6 +210,11 @@ int main(int argc, char * argv[]) {
 	if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
 		PRINT_ERROR("client: error in connect");
 
+#ifdef PRINT_LOG
+	log_rec = malloc(LOG_REC_SIZE);
+	bzero(log_rec, LOG_REC_SIZE);
+#endif
+
 	/* 
 	 * Cycling forever to get the state of the plant. Ctrl-C will
 	 * terminate
@@ -213,9 +224,7 @@ int main(int argc, char * argv[]) {
 		/* Now the system wrote the state in shared_state */
 
 #ifdef PRINT_LOG
-		/* Printing received message */
-		printf("%s: Got state from plant. First state: %f\n",
-		       __FILE__, shared_state[0]);
+		clock_gettime(CLOCK_REALTIME, &after_wait);
 #endif /* PRINT_LOG */
 
 		/* Store the lastest solver status in mpc_st */
@@ -265,15 +274,35 @@ int main(int argc, char * argv[]) {
 		/* Write solution to shared mem and let the plant know */
 		memcpy(shared_input, mpc_st->input,
 		       sizeof(*shared_state)*data->input_num);
+#ifdef PRINT_LOG
+		clock_gettime(CLOCK_REALTIME, &before_post);
+#endif /* PRINT_LOG */
 		sem_post(data->sems+MPC_SEM_INPUT_WRITTEN);
+#ifdef PRINT_LOG
+		offset_rec = 0;
+		offset_rec += snprintf(log_rec+offset_rec,
+				       (LOG_REC_SIZE)-offset_rec,
+				       "%ld.%09ld,%ld.%09ld,",
+				       after_wait.tv_sec, after_wait.tv_nsec,
+				       before_post.tv_sec, before_post.tv_nsec);
+		for (i=0; i<data->state_num ; i++) {
+			offset_rec += snprintf(log_rec+offset_rec,
+					       (LOG_REC_SIZE)-offset_rec,
+					       "%f,", shared_state[i]);
+		}
+		for (i=0; i<data->input_num ; i++) {
+			offset_rec += snprintf(log_rec+offset_rec,
+					       (LOG_REC_SIZE)-offset_rec,
+					       "%f,", shared_input[i]);
+		}
+		printf("%s\n", log_rec);
+#endif /* PRINT_LOG */
 	}
 }
-
 
 	
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 {
-
 	/* Cleanup the MPC struct */
 	bzero(mpc,sizeof(*mpc));
 	
@@ -286,11 +315,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
 #endif
 	mpc->param->meth    = GLP_DUAL;    /* dual simplex */
-#if 1
 	mpc->param->it_lim  = INT_MAX;     /* max num of iterations */
-#else
-	mpc->param->it_lim  = 2;     /* max num of iterations */
-#endif
 
 	/* Initialize the plant */
 	mpc->model = malloc(sizeof(*(mpc->model)));

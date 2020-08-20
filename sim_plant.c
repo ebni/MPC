@@ -8,10 +8,14 @@
 #define _GNU_SOURCE
 #include <stdio.h> 
 #include <strings.h> 
-#include <sys/types.h> 
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+/*
 #include <arpa/inet.h> 
 #include <sys/socket.h> 
 #include <netinet/in.h>
+*/
 #include <string.h>
 #include <errno.h>
 #include <sched.h>
@@ -27,6 +31,7 @@
 #include <glpk.h>
 #include "dyn.h"
 #include "mpc.h"
+#include "mpc_interface.h"
 
 #define INIT_X0_JSON
 
@@ -42,9 +47,6 @@
  *
  * DEBUG_SIMPLEX, turn on all Simplex messages for debugging
  *
- * HAVE_OBSTACLE, allow problem formulation with obstacles (WARNING:
- * not working!!! Consider fixing or removing the obstacle stuff)
- *
  * PRINT_MAT, print matrices (dont remember really how much stuff is
  * printed)
  */
@@ -54,7 +56,6 @@
 #define USE_DUAL
 #define PRINT_PROBLEM
 #define DEBUG_SIMPLEX
-#define HAVE_OBSTACLE
 #define PRINT_MAT
 */
 
@@ -81,6 +82,9 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 mpc_status * mpc_st;
 int sockfd;
 gsl_vector *x_k;
+struct shared_data * data;
+double * shared_state;
+double * shared_input;
 
 /*
  * This is code should be invoked as:
@@ -92,18 +96,12 @@ gsl_vector *x_k;
  */
 int main(int argc, char *argv[]) {
 	mpc_glpk uav_mpc;
-
-#ifdef HAVE_OBSTACLE
-	/* TO BE FIXED: ADDED TO JSON FILE?? */
-	double center[] = OBSTACLE_CENTER;
-	double radius[] = OBSTACLE_RADIUS;
-#endif
 	dyn_trace * uav_trace;
 
-	int model_fd;
+	int model_fd, shm_id;
 	char * buffer;
 	ssize_t size;
-	size_t i, steps;
+	size_t steps;
 
 	struct json_object *model_json;
 	struct json_tokener * tok;
@@ -155,6 +153,16 @@ int main(int argc, char *argv[]) {
 	/* Allocating for a trace */ 
 	uav_trace = dyn_trace_alloc(uav_mpc.model->n, uav_mpc.model->m, steps);
 
+	/* Getting the shared memory area */
+	shm_id = shmget(MPC_SHM_KEY, 0, 0);
+	if (shm_id == -1) {
+		PRINT_ERROR("shmget failed");
+	}
+	/* Setting up pointers to state/input arrays */
+	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	shared_state = (double*)(data+1); /* starts just after *data */
+	shared_input = shared_state+data->state_num;
+
 	/* Computing the system dynamics */
 	dyn_plant_dynamics(uav_mpc.model, uav_mpc.x0, uav_trace,
 			   ctrl_by_mpc, &uav_mpc);
@@ -164,14 +172,8 @@ int main(int argc, char *argv[]) {
 	gsl_matrix_pretty(stdout, uav_trace->x, "%7.3f");
 	printf("\nINPUT APPLIED\n");
 	gsl_matrix_pretty(stdout, uav_trace->u, "%7.3f");
-	printf("\nSTEPS NEEDED\n");
-	gsl_vector_int_pretty(stdout, uav_trace->steps, "%5ld");
 	printf("\nTIME NEEDED\n");
 	gsl_vector_pretty(stdout, uav_trace->time, "%e");
-	printf("\nOPTIMALITY (prim,dual): undefined=%d, feasible=%d, infeasible=%d, empty=%d\n", GLP_UNDEF, GLP_FEAS, GLP_INFEAS, GLP_NOFEAS);
-	for (i=0; i<steps; i++) {
-		printf("\t(%d,%d)", uav_trace->opt[i].prim, uav_trace->opt[i].dual);
-	}
 	printf("\n");
 	/* Free all */
 	free(uav_mpc.model);
@@ -187,34 +189,31 @@ int main(int argc, char *argv[]) {
 
 void ctrl_by_mpc(size_t k, dyn_trace * t, void *param)
 {
-	mpc_glpk *my_mpc;
 	size_t i;
-
-	my_mpc = (mpc_glpk *)param;
+	struct timespec before_post, after_wait;
+	double cur_time;
 
 	/* Get the current state from the k-th column of t->x */
 	gsl_matrix_get_col(x_k, t->x, k);
 
-	/* FIXME: invoke MPC  */
-	
-	/* Getting the solution */
+	/* Invoke MPC by writing state and then reading input */
+	memcpy(shared_state, x_k->data,
+	       sizeof(*shared_state)*data->state_num);
+	clock_gettime(CLOCK_REALTIME, &before_post);
+	sem_post(data->sems+MPC_SEM_STATE_WRITTEN);
+	sem_wait(data->sems+MPC_SEM_INPUT_WRITTEN);
+	clock_gettime(CLOCK_REALTIME, &after_wait);
 	for (i = 0; i < t->m; i++) {
-		gsl_matrix_set(t->u, i, k,
-			       glp_get_col_prim(my_mpc->op,
-						my_mpc->v_U+(int)i));
+		gsl_matrix_set(t->u, i, k, shared_input[i]);
 	}
-
-	/* Store optimality of solution */
-	t->opt[k].time = /* FIXME: add time spent */
+	
+	cur_time =  (double)(after_wait.tv_sec-before_post.tv_sec);
+	cur_time += 1e-9*(double)(after_wait.tv_nsec-before_post.tv_nsec);
+	gsl_vector_set(t->time, k, cur_time);
 }
 
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 {
-#ifdef HAVE_OBSTACLE
-	/* TO BE FIXED: ADDED TO JSON FILE?? */
-	double center[] = OBSTACLE_CENTER;
-	double radius[] = OBSTACLE_RADIUS;
-#endif
 #ifdef INIT_X0_JSON
 	size_t i;
 	struct json_object *tmp_elem, *elem;
@@ -263,16 +262,6 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	/* Set a minimization cost for the MPC */
 	mpc_goal_set(mpc, in);
  
-#ifdef HAVE_OBSTACLE
-	/* Add the obstacle */
-	mpc_state_obstacle_add(mpc, center, radius);
-#ifdef PRINT_PROBLEM
-	/* DEBUG ONLY: Writing the GLPK formulation in CPLEX form */
-	glp_write_lp(mpc->op, NULL, "problem_obstacle.txt");
-#endif
-
-#endif
-
 #ifdef INIT_X0_JSON
 	/* 
 	 * Get the initial state from JSON, store it in the MPC
