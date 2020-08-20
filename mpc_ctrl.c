@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <limits.h> 
 #include <stdio.h>
 #include <unistd.h>
@@ -68,6 +69,14 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
  * Signal handler (Ctrl-C). This process will terminate only on Ctrl-C
  */
 void term_handler(int signum);
+
+/*
+ * Handling  the segmentation  fault  signal (SIGSEGV).  By setting  a
+ * breakpoint within  the signal handler,  it is then possible  to see
+ * what is the line of code which generated the error.
+ */
+void seg_fault_handler(int signum);
+
 
 int main(int argc, char * argv[]) {
 	struct shared_data * data;
@@ -122,6 +131,7 @@ int main(int argc, char * argv[]) {
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGPIPE, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGSEGV, &sa, NULL);
 
 	/* Initializing the model */
 	model_mpc_startup(&my_mpc, model_json);
@@ -315,6 +325,19 @@ void term_handler(int signum)
 {
 	/* Removing shared memory object */
 	shmctl(shm_id, IPC_RMID, NULL);
-	exit(0);          /* this is a brute, working way */
+	switch (signum) {
+	case SIGINT:
+		printf("Got SIGINT (Ctrl-C). Removed IPC object with key %X\n",
+		       MPC_SHM_KEY);
+		exit(0);
+	case SIGHUP:
+	case SIGPIPE:
+	case SIGTERM:
+	case SIGSEGV:
+		fprintf(stderr,
+			"Got unexpected terminating signal %d. Still removing IPC object with key %X\n",
+			signum,
+			MPC_SHM_KEY);
+		exit(-1);
+	}
 }
-
