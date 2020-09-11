@@ -14,6 +14,7 @@
 #include "mpc_interface.h"
 
 #define PRINT_LOG
+#define MPC_STATUS_X0_ONLY
 /*
  * Below are some #define which trigger something:
  *
@@ -22,11 +23,14 @@
  * PRINT_PROBLEM, print the problem formulation in txt files
  *
  * DEBUG_SIMPLEX, turn on all Simplex messages for debugging
+ *
+ * MPC_STATUS_X0_ONLY, touch only x0, not basis stuff
  */
 /*
 #define PRINT_LOG
 #define PRINT_PROBLEM
 #define DEBUG_SIMPLEX
+#define MPC_STATUS_X0_ONLY
 */
 
 #include <sys/ipc.h>
@@ -228,14 +232,16 @@ int main(int argc, char * argv[]) {
 #endif /* PRINT_LOG */
 
 		/* Store the lastest solver status in mpc_st */
+#ifndef MPC_STATUS_X0_ONLY
 		mpc_status_save(&my_mpc, mpc_st);
-		memcpy(mpc_st->state, shared_state,
-		       sizeof(*shared_state)*data->state_num);
 		*mpc_st->steps_bdg = INT_MAX;  /* max iterations */
 		*mpc_st->time_bdg = INT_MAX;   /* max seconds */
 		/* Setting the status of cur solution */
 		*mpc_st->prim_stat = GLP_INFEAS;
 		*mpc_st->dual_stat = GLP_FEAS;
+#endif /* MPC_STATUS_X0_ONLY */
+		memcpy(mpc_st->state, shared_state,
+		       sizeof(*shared_state)*data->state_num);
 		if (data->flags & MPC_OFFLOAD) {
 			/* MPC offloaded to server */
 			
@@ -253,14 +259,21 @@ int main(int argc, char * argv[]) {
 #endif
 		} else {
 			/* MPC runs locally */
-			mpc_status_resume(&my_mpc, mpc_st);
 #ifdef PRINT_PROBLEM
 			sprintf(tmp, "%02luB", k);
 			strcat(tmp, s_sol);
 			glp_print_sol(my_mpc.op, tmp);
 #endif
+#ifndef MPC_STATUS_X0_ONLY
+			mpc_status_resume(&my_mpc, mpc_st);
 			glp_simplex(my_mpc.op, my_mpc.param);
 			mpc_status_save(&my_mpc, mpc_st);
+#else
+			/* update initial state */
+			mpc_status_set_x0(&my_mpc, mpc_st);
+			glp_simplex(my_mpc.op, my_mpc.param);
+			mpc_status_save(&my_mpc, mpc_st);
+#endif /* MPC_STATUS_X0_ONLY */
 		}
 		
 #ifdef PRINT_PROBLEM
@@ -288,12 +301,12 @@ int main(int argc, char * argv[]) {
 		for (i=0; i<data->state_num ; i++) {
 			offset_rec += snprintf(log_rec+offset_rec,
 					       (LOG_REC_SIZE)-offset_rec,
-					       "%f,", shared_state[i]);
+					       "%6.3f,", shared_state[i]);
 		}
 		for (i=0; i<data->input_num ; i++) {
 			offset_rec += snprintf(log_rec+offset_rec,
 					       (LOG_REC_SIZE)-offset_rec,
-					       "%f,", shared_input[i]);
+					       "%6.3f,", shared_input[i]);
 		}
 		printf("%s\n", log_rec);
 #endif /* PRINT_LOG */

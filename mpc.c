@@ -1099,6 +1099,18 @@ void mpc_status_free(mpc_status * sol_st)
 }
 
 /*
+ * Set the  initial state x0  from sol_st->state to  the corresponding
+ * field in mpc
+ */
+void mpc_status_set_x0(mpc_glpk * mpc, const mpc_status * sol_st)
+{
+	/* update initial state */
+	memcpy(mpc->x0->data, sol_st->state,
+	       sizeof(*sol_st->state)*mpc->model->n);
+	mpc_update_x0(mpc);
+}
+
+/*
  * Get the status  of the solver from the parameter  sol_st and update
  * the optimization  problem accordingly.  In case  GLPK is  used, the
  * solver  state  is  the  row/column basic/non-basic  status  of  the
@@ -1113,9 +1125,12 @@ void mpc_status_resume(mpc_glpk * mpc, const mpc_status * sol_st)
 	mpc->param->tm_lim  = (int)(*sol_st->time_bdg*1e-3); /* sec to msec */
 
 	/* update initial state */
+	mpc_status_set_x0(mpc, sol_st);
+	/*
 	memcpy(mpc->x0->data, sol_st->state,
 	       sizeof(*sol_st->state)*mpc->model->n);
 	mpc_update_x0(mpc);
+	*/
 
 	/* Storing basic/non-basic status of rows */
 	for (i = 1; i <= glp_get_num_rows(mpc->op); i++) {

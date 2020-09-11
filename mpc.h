@@ -30,7 +30,7 @@ typedef struct {
 } mpc_glpk;
 
 /*
- * State of  the solver which can  be saved and restored  properly. In
+ * Status of the  solver which can be saved and  restored properly. In
  * the case of  MPC being solved by  GLPK, the state of  the solver is
  * modelled by the basic/non-basic/else status  of rows and columns of
  * the LP problem corresponding to the MPC.
@@ -51,7 +51,6 @@ typedef struct {
 	size_t size;           /* Size of allocated block */
 	void * block; /* data is store contiguously to facilitate */
 } mpc_status;
-
 
 /*
  * Adding  the variables  for  the  control input  to  the MPC  problem
@@ -174,6 +173,12 @@ void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size);
 mpc_status * mpc_status_alloc(const mpc_glpk * mpc);
 
 void mpc_status_free(mpc_status * sol_st);
+
+/*
+ * Set the  initial state x0  from sol_st->state to  the corresponding
+ * field in mpc
+ */
+void mpc_status_set_x0(mpc_glpk * mpc, const mpc_status * sol_st);
 
 /*
  * Store the status of the solver in the corresponding struct. In case
