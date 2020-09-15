@@ -28,7 +28,6 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	double *state_rd, *input_wr, time;
 	int shm_id;
 	struct shared_data * data;
-	struct timespec tic, toc;
 	char error_string[1024];
 	double * shared_state;
 	double * shared_input;
@@ -86,7 +85,6 @@ void mexFunction( int nlhs, mxArray *plhs[],
 		shmdt(data);
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &tic);
 	/* Create a pointer to the real data in the state vector  */
 #if MX_HAS_INTERLEAVED_COMPLEX
 	state_rd = mxGetDoubles(prhs[0]);
@@ -110,14 +108,11 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	input_wr = mxGetPr(plhs[0]);
 #endif
 	memcpy(input_wr, shared_input, sizeof(input_wr[0])*data->input_num);
+	if(nlhs >= 2) {
+		time = data->stats_dbl[MPC_STATS_DBL_TIME];
+		plhs[1] = mxCreateDoubleScalar(time);
+	}
 	
 	/* Finally detaching shared memory */
 	shmdt(data);
-
-	clock_gettime(CLOCK_MONOTONIC, &toc);
-	if(nlhs >= 2) {
-		time =  (double)(toc.tv_sec-tic.tv_sec);
-		time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
-		plhs[1] = mxCreateDoubleScalar(time);
-	}
 }

@@ -224,12 +224,9 @@ int main(int argc, char * argv[]) {
 	 * terminate
 	 */
 	while (1) {
+		/* Blocked until the system wrote the state in shared_state */
 		sem_wait(data->sems+MPC_SEM_STATE_WRITTEN);
-		/* Now the system wrote the state in shared_state */
-
-#ifdef PRINT_LOG
 		clock_gettime(CLOCK_REALTIME, &after_wait);
-#endif /* PRINT_LOG */
 
 		/* Store the lastest solver status in mpc_st */
 #ifndef MPC_STATUS_X0_ONLY
@@ -275,7 +272,12 @@ int main(int argc, char * argv[]) {
 			mpc_status_save(&my_mpc, mpc_st);
 #endif /* MPC_STATUS_X0_ONLY */
 		}
-		
+		clock_gettime(CLOCK_REALTIME, &before_post);
+		data->stats_dbl[MPC_STATS_DBL_TIME] =
+			(double)(before_post.tv_sec-after_wait.tv_sec);
+		data->stats_dbl[MPC_STATS_DBL_TIME] +=
+			((double)(before_post.tv_nsec-after_wait.tv_nsec))*1e-9;
+
 #ifdef PRINT_PROBLEM
 		sprintf(tmp, "%02luC", k);
 		strcat(tmp, s_sol);
@@ -284,12 +286,10 @@ int main(int argc, char * argv[]) {
 		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 #endif
 
-		/* Write solution to shared mem and let the plant know */
+		/* Write solution and stats to shared mem and let the plant know */
 		memcpy(shared_input, mpc_st->input,
 		       sizeof(*shared_state)*data->input_num);
-#ifdef PRINT_LOG
-		clock_gettime(CLOCK_REALTIME, &before_post);
-#endif /* PRINT_LOG */
+		/* FIXME: add writing stats */
 		sem_post(data->sems+MPC_SEM_INPUT_WRITTEN);
 #ifdef PRINT_LOG
 		offset_rec = 0;

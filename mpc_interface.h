@@ -34,15 +34,21 @@
 #define MPC_CPU_ID 1        /* CPU where processes sharing memory reside */
 
 
-#define MPC_SEM_NUM            2
+/* Semapohore stuff */
+#define MPC_SEM_NUM            2   /* how many semaphores used */
 #define MPC_SEM_STATE_WRITTEN  0   /* +1: plant; -1 MPC controller */
 #define MPC_SEM_INPUT_WRITTEN  1   /* +1: MPC controller; -1 plant */
 
-/*
- * Configuration flags
- */
+/* Configuration flags */
 #define MPC_OFFLOAD 0x01     /* if set, off-load MPC computation */
 
+/* Statistics */
+#define MPC_STATS_DBL_LEN  1   /* how many double statistics */
+#define MPC_STATS_INT_LEN  0   /* how many int statistics */
+
+/* Statistics IDs */
+#define MPC_STATS_DBL_TIME 0   /* time taken for MPC computation */
+ 
 /*
  * MPC server configuration parameters. The server IP may be
  * overwritten by the command-line arguments of mpc_cltr.
@@ -54,6 +60,12 @@ struct shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
 	size_t state_num;            /* number of states */
 	size_t input_num;            /* number of inputs */
+#if MPC_STATS_INT_LEN
+	int stats_int[MPC_STATS_INT_LEN];
+#endif
+#if MPC_STATS_DBL_LEN
+	double stats_dbl[MPC_STATS_DBL_LEN];
+#endif
 	uint32_t flags;
 	/*
 	 * The shared memory then continues with two arrays of double
@@ -62,8 +74,8 @@ struct shared_data {
 	 *   double state[state_num]
 	 *     used by the application to communicate the state to MPC
 	 *
-	 *   double input[MPC_INPUT_NUM]
-	 *     used by MPC to communicate the input to the applciation
+	 *   double input[input_num]
+	 *     used by MPC to communicate the input to the application
 	 */
 };
 
