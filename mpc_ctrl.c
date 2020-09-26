@@ -168,6 +168,7 @@ int main(int argc, char * argv[]) {
 	      sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
+	MPC_OFFLOAD_ENABLE(data);
 	
 	/* Resetting all semaphores */
 	for (i=0; i<MPC_SEM_NUM; i++) {
@@ -263,14 +264,12 @@ int main(int argc, char * argv[]) {
 #endif
 #ifndef MPC_STATUS_X0_ONLY
 			mpc_status_resume(&my_mpc, mpc_st);
-			glp_simplex(my_mpc.op, my_mpc.param);
-			mpc_status_save(&my_mpc, mpc_st);
 #else
 			/* update initial state */
 			mpc_status_set_x0(&my_mpc, mpc_st);
+#endif /* MPC_STATUS_X0_ONLY */
 			glp_simplex(my_mpc.op, my_mpc.param);
 			mpc_status_save(&my_mpc, mpc_st);
-#endif /* MPC_STATUS_X0_ONLY */
 		}
 		clock_gettime(CLOCK_REALTIME, &before_post);
 		data->stats_dbl[MPC_STATS_DBL_TIME] =

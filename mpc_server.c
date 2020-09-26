@@ -21,9 +21,10 @@
 #include <glpk.h>
 #include "dyn.h"
 #include "mpc.h"
+#include "mpc_interface.h"
 
 #define PORT_MATLAB 6004
-#define PORT_SOLVER 6001
+/*#define PORT_SOLVER 6001*/
 
 #define USE_DUAL
 #define CLIENT_SOLVER
@@ -97,15 +98,19 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
  * the PORT_* #define
  */
 int main(int argc, char *argv[]) {
-	mpc_glpk uav_mpc;
+	mpc_glpk my_mpc;
 #ifdef CLIENT_MATLAB
 	gsl_vector *x, *u;	
 	size_t i;
 #endif
 #ifdef CLIENT_SOLVER
-	mpc_status * cur_st;
+	mpc_status * mpc_st;
 #endif
-
+#ifdef TEST_PARTIAL_OPTIMIZATION
+	struct timespec tic, toc;
+	double time;
+	int num;
+#endif
 	int model_fd;
 	char * buffer;
 	ssize_t size;
@@ -120,9 +125,6 @@ int main(int argc, char *argv[]) {
 	socklen_t len;
 	struct sockaddr_in servaddr, cliaddr;
 	cpu_set_t my_mask;
-	struct timespec tic, toc;
-	double time;
-	int num;
 	
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
@@ -147,13 +149,13 @@ int main(int argc, char *argv[]) {
 	free(buffer);
 
 	/* Initializing the model */
-	model_mpc_startup(&uav_mpc, model_json);
+	model_mpc_startup(&my_mpc, model_json);
 
 	/* Opening socket and all server stuff */
 #ifdef CLIENT_MATLAB
 	port = PORT_MATLAB;
 #else
-	port = PORT_SOLVER;	
+	port = MPC_SOLVER_PORT;
 #endif
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);         
 	bzero(&servaddr, sizeof(servaddr)); 
@@ -171,22 +173,25 @@ int main(int argc, char *argv[]) {
 	
 	/* Pre-allocating vectors */
 #ifdef CLIENT_MATLAB
-	x = gsl_vector_calloc(uav_mpc.model->n);
-	u = gsl_vector_calloc(uav_mpc.model->m);
+	x = gsl_vector_calloc(my_mpc.model->n);
+	u = gsl_vector_calloc(my_mpc.model->m);
 	buf_in   = (unsigned long *)x->data;
 	buf_out  = (unsigned long *)u->data;
 	size_in  = sizeof(*buf_in)*x->size;
 	size_out = sizeof(*buf_out)*u->size;
 #endif
 #ifdef CLIENT_SOLVER
-	cur_st = mpc_status_alloc(&uav_mpc);
-	buf_in = buf_out = cur_st->block;
-	size_in = size_out = cur_st->size;
+	mpc_st = mpc_status_alloc(&my_mpc);
+	buf_in = buf_out = mpc_st->block;
+	size_in = size_out = mpc_st->size;
 #endif
 	/* Server cycle: Listening forever  */
 	for (k=0; /* never stop */; k++) {
 		len = sizeof(cliaddr);
-		num = (int)recvfrom(listenfd, buf_in, size_in, 
+#ifdef TEST_PARTIAL_OPTIMIZATION
+		num = (int)
+#endif
+		  recvfrom(listenfd, buf_in, size_in, 
 				    0, (struct sockaddr*)&cliaddr, &len);
 #ifdef CLIENT_MATLAB
 		/* 
@@ -206,11 +211,11 @@ int main(int argc, char *argv[]) {
 #endif /* PRINT_LOG */
 
 		/* Getting steps and time of simplex */
-		num = (long)glp_get_it_cnt(uav_mpc.op);
+		num = (long)glp_get_it_cnt(my_mpc.op);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-		ctrl_by_mpc(x, u, &uav_mpc);
+		ctrl_by_mpc(x, u, &my_mpc);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-		num = glp_get_it_cnt(uav_mpc.op) - num;
+		num = glp_get_it_cnt(my_mpc.op) - num;
 		time =  (double)(toc.tv_sec-tic.tv_sec);
 		time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
 #ifdef PRINT_LOG
@@ -228,42 +233,49 @@ int main(int argc, char *argv[]) {
 #ifdef PRINT_LOG
 		printf("MESSAGE: %ld\n", k);
 		fprintf(stdout, "status received\n");
-		mpc_status_fprintf(stdout, &uav_mpc, cur_st);
+		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 #endif /* PRINT_LOG */
 		/* 
 		 * Condition to launch MPC server: current solution is
 		 * not optimal and we have budgets
 		 */
-		if ((*cur_st->prim_stat != GLP_FEAS ||
-		     *cur_st->dual_stat != GLP_FEAS) &&
-		    *cur_st->steps_bdg > 0 && *cur_st->time_bdg > 0) {
+#ifdef TEST_PARTIAL_OPTIMIZATION /* OLD CODE: TO BE FIXED */
+		if ((*mpc_st->prim_stat != GLP_FEAS ||
+		     *mpc_st->dual_stat != GLP_FEAS) &&
+		    *mpc_st->steps_bdg > 0 && *mpc_st->time_bdg > 0) {
 			/* Resuming the status of the solver just received */
-			mpc_status_resume(&uav_mpc, cur_st);
+			mpc_status_resume(&my_mpc, mpc_st);
 		
 			/* Solve it by Simplex and measure time/steps */
-			num = glp_get_it_cnt(uav_mpc.op);
+			num = glp_get_it_cnt(my_mpc.op);
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-			glp_simplex(uav_mpc.op, uav_mpc.param);
+			glp_simplex(my_mpc.op, my_mpc.param);
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-			num = glp_get_it_cnt(uav_mpc.op) - num;
+			num = glp_get_it_cnt(my_mpc.op) - num;
 			time =  (double)(toc.tv_sec-tic.tv_sec);
 			time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
 
 			/* Storing used budget */
-			*cur_st->steps_bdg = num;
-			*cur_st->time_bdg  = time;
+			*mpc_st->steps_bdg = num;
+			*mpc_st->time_bdg  = time;
 
 			/* Saving the updated solver status: ready to send */
-			mpc_status_save(&uav_mpc, cur_st);
+			mpc_status_save(&my_mpc, mpc_st);
 		} else {
 			/* Do nothing. Just set to 0 the used budgets */
-			*cur_st->steps_bdg = 0;
-			*cur_st->time_bdg  = 0;
+			*mpc_st->steps_bdg = 0;
+			*mpc_st->time_bdg  = 0;
 		}
+#else
+		/* update initial state */
+		mpc_status_set_x0(&my_mpc, mpc_st);
+		glp_simplex(my_mpc.op, my_mpc.param);
+		mpc_status_save(&my_mpc, mpc_st);
+#endif  /* TEST_PARTIAL_OPTIMIZATION */
 #ifdef PRINT_LOG
 		printf("MESSAGE: %ld\n", k);
 		fprintf(stdout, "status after optimization\n");
-		mpc_status_fprintf(stdout, &uav_mpc, cur_st);
+		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 #endif /* PRINT_LOG */
 #endif /* CLIENT_SOLVER */
 		sendto(listenfd, buf_out, size_out, 0, 
@@ -271,11 +283,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Free all */
-	free(uav_mpc.model);
-	gsl_vector_free(uav_mpc.w);
-	gsl_vector_free(uav_mpc.x0);
-	glp_delete_prob(uav_mpc.op);
-	free(uav_mpc.param);
+	free(my_mpc.model);
+	gsl_vector_free(my_mpc.w);
+	gsl_vector_free(my_mpc.x0);
+	glp_delete_prob(my_mpc.op);
+	free(my_mpc.param);
 
 	return 0;
 }

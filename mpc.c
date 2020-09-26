@@ -1184,6 +1184,7 @@ void mpc_status_fprintf(FILE *f,
 	for (i = 0; i < mpc->model->m; i++) {
 		fprintf(f, "%f\t", sol_st->input[i]);
 	}
+#if 0  /* Let's omit the basic status for a while */
 	fprintf(f, "\nRow status\n");
 	for (i = 1; i <= (size_t)glp_get_num_rows(mpc->op); i++) {
 		fprintf(f, "%d\t", sol_st->row_stat[i]);
@@ -1192,6 +1193,7 @@ void mpc_status_fprintf(FILE *f,
 	for (i = 1; i <= (size_t)glp_get_num_cols(mpc->op); i++) {
 		fprintf(f, "%d\t", sol_st->col_stat[i]);
 	}
+#endif
 	fprintf(f, "\nSteps: %d\n", *sol_st->steps_bdg);
 	fprintf(f, "Time: %f\n", *sol_st->time_bdg);
 	fprintf(f, "Primal status: %d\n", *sol_st->prim_stat);
