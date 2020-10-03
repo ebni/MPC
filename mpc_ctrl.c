@@ -168,7 +168,7 @@ int main(int argc, char * argv[]) {
 	      sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
-	MPC_OFFLOAD_ENABLE(data);
+	MPC_OFFLOAD_DISABLE(data);
 	
 	/* Resetting all semaphores */
 	for (i=0; i<MPC_SEM_NUM; i++) {
