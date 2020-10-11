@@ -25,6 +25,7 @@
 
 #define PORT_MATLAB 6004
 /*#define PORT_SOLVER 6001*/
+#define STRLEN_COMMAND 100
 
 #define USE_DUAL
 #define CLIENT_SOLVER
@@ -73,6 +74,12 @@
 				__FILE__, __LINE__, errno, (x));}
 
 #define DONTCARE 0 /* any constant to be ignored */
+
+/*
+ * Set prio priority (high number => high priority) and pin the
+ * invoking process to CPU cpu_id
+ */
+void sched_set_prio_affinity(uint32_t prio, int cpu_id);
 
 /*
  * MPC controller
@@ -124,7 +131,6 @@ int main(int argc, char *argv[]) {
 	int listenfd;
 	socklen_t len;
 	struct sockaddr_in servaddr, cliaddr;
-	cpu_set_t my_mask;
 	
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
@@ -166,10 +172,13 @@ int main(int argc, char *argv[]) {
 		PRINT_ERROR("issue in bind");
 	printf("MPC server up and running: listening behind port %d\n", port);
 
-	/* Pin the server to CPU 0 */
+	/* Pin server to a CPU different than client */
+	sched_set_prio_affinity(sched_get_priority_max(SCHED_FIFO),
+				(MPC_CPU_ID-1)%2);
+	/*
 	CPU_ZERO(&my_mask);
 	CPU_SET(0, &my_mask);
-	sched_setaffinity(0, sizeof(my_mask), &my_mask);
+	sched_setaffinity(0, sizeof(my_mask), &my_mask); */
 	
 	/* Pre-allocating vectors */
 #ifdef CLIENT_MATLAB
@@ -380,4 +389,38 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	*/
 
 	return 0;
+}
+
+void sched_set_prio_affinity(uint32_t prio, int cpu_id)
+{
+	cpu_set_t  mask;
+
+	/* Set CPU affinity */
+	CPU_ZERO(&mask);
+	CPU_SET(cpu_id, &mask);
+	if (sched_setaffinity(0, sizeof(mask), &mask) != 0) {
+		PRINT_ERROR("sched_setaffinity");
+		exit(-1);
+	}
+
+	/* Set priority */
+#if SCHED_SETATTR_IN_SCHED_H
+	/* EB: TO BE TESTED */
+	struct sched_attr attr;
+	
+	bzero(&attr, sizeof(attr));
+	attr.size = sizeof(attr);
+	attr.sched_policy = SCHED_FIFO;
+	attr.sched_priority = prio;
+	if (sched_setattr(0, &attr, 0) != 0) {
+		PRINT_ERROR("sched_setattr");
+		exit(-1);
+	}
+#else
+	char launched[STRLEN_COMMAND];  /* String with launched command */
+
+	snprintf(launched, STRLEN_COMMAND,
+		 "sudo chrt -f -p %d %d", prio, getpid());
+	system(launched);
+#endif
 }

@@ -11,7 +11,10 @@
  *   specified,  the  value  of  the macro  MPC_SOLVER_IP  defined  in
  *   mpc_interface.h is assumed
  */
+
+#define _GNU_SOURCE
 #include "mpc_interface.h"
+#define STRLEN_COMMAND 100
 
 #define PRINT_LOG
 #define MPC_STATUS_X0_ONLY
@@ -36,6 +39,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <signal.h>
+#include <sched.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -59,6 +63,12 @@
 /* GLOBAL VARIABLES (used in handler) */
 int shm_id;
 
+
+/*
+ * Set prio priority (high number => high priority) and pin the
+ * invoking process to CPU cpu_id
+ */
+void sched_set_prio_affinity(uint32_t prio, int cpu_id);
 
 /*
  * Initializing the model with JSON file
@@ -142,6 +152,10 @@ int main(int argc, char * argv[]) {
 	sigaction(SIGPIPE, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGSEGV, &sa, NULL);
+
+	/* Pinning MPC to a fixed CPU */
+	sched_set_prio_affinity(sched_get_priority_max(SCHED_FIFO),
+				MPC_CPU_ID);
 
 	/* Initializing the model */
 	model_mpc_startup(&my_mpc, model_json);
@@ -377,4 +391,38 @@ void term_handler(int signum)
 			MPC_SHM_KEY);
 		exit(-1);
 	}
+}
+
+void sched_set_prio_affinity(uint32_t prio, int cpu_id)
+{
+	cpu_set_t  mask;
+
+	/* Set CPU affinity */
+	CPU_ZERO(&mask);
+	CPU_SET(cpu_id, &mask);
+	if (sched_setaffinity(0, sizeof(mask), &mask) != 0) {
+		PRINT_ERROR("sched_setaffinity");
+		exit(-1);
+	}
+
+	/* Set priority */
+#if SCHED_SETATTR_IN_SCHED_H
+	/* EB: TO BE TESTED */
+	struct sched_attr attr;
+	
+	bzero(&attr, sizeof(attr));
+	attr.size = sizeof(attr);
+	attr.sched_policy = SCHED_FIFO;
+	attr.sched_priority = prio;
+	if (sched_setattr(0, &attr, 0) != 0) {
+		PRINT_ERROR("sched_setattr");
+		exit(-1);
+	}
+#else
+	char launched[STRLEN_COMMAND];  /* String with launched command */
+
+	snprintf(launched, STRLEN_COMMAND,
+		 "sudo chrt -f -p %d %d", prio, getpid());
+	system(launched);
+#endif
 }

@@ -85,8 +85,9 @@ struct shared_data {
  * a pointer  to a struct share_data  which should be declared  by the
  * user.
  */
-#define MPC_OFFLOAD_ENABLE(var)   var->flags |= MPC_OFFLOAD;
-#define MPC_OFFLOAD_DISABLE(var)  var->flags &= ~((uint32_t)MPC_OFFLOAD);
+#define MPC_OFFLOAD_ENABLE(var)       var->flags |= MPC_OFFLOAD;
+#define MPC_OFFLOAD_DISABLE(var)      var->flags &= ~((uint32_t)MPC_OFFLOAD);
+#define MPC_OFFLOAD_IS_ENABLED(var)   (var->flags & MPC_OFFLOAD)
 
 
 #endif /* _MPC_INTERFACE_H_ */
