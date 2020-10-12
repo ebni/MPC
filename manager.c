@@ -114,7 +114,8 @@ int main(int argc, char * argv[]) {
 		if (MPC_OFFLOAD_IS_ENABLED(mpc_data)) {
 			/* currently off-loading */
 			if (reqs_pending) {
-				/* off_loading and pending reqs */
+				/* off_loading and pending reqs:
+				   nothing to do to lower the load */
 				continue;
 			}
 			if (seq_no_pend>=RM_MAX_NOPENDING_TO_ONBOARD) {
