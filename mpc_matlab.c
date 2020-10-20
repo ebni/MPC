@@ -26,7 +26,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 {
 	size_t state_num, input_num, n, m;
 	double *state_rd, *input_wr, time;
-	int shm_id;
+	int shm_id, offloaded;
 	struct shared_data * data;
 	char error_string[1024];
 	double * shared_state;
@@ -111,6 +111,10 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	if(nlhs >= 2) {
 		time = data->stats_dbl[MPC_STATS_DBL_TIME];
 		plhs[1] = mxCreateDoubleScalar(time);
+	}
+	if(nlhs >= 3) {
+		offloaded = data->stats_int[MPC_STATS_INT_OFFLOAD];
+		plhs[2] = mxCreateDoubleScalar(offloaded);
 	}
 	
 	/* Finally detaching shared memory */

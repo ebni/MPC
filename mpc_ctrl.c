@@ -182,7 +182,7 @@ int main(int argc, char * argv[]) {
 	      sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
-	MPC_OFFLOAD_DISABLE(data);
+	MPC_OFFLOAD_ENABLE(data);
 	
 	/* Resetting all semaphores */
 	for (i=0; i<MPC_SEM_NUM; i++) {
@@ -256,6 +256,7 @@ int main(int argc, char * argv[]) {
 		       sizeof(*shared_state)*data->state_num);
 		if (data->flags & MPC_OFFLOAD) {
 			/* MPC offloaded to server */
+			data->stats_int[MPC_STATS_INT_OFFLOAD] = 1;
 			
 			/* Sending/receiving status to/from server */
 			send(sockfd, mpc_st->block, mpc_st->size, 0);
@@ -271,6 +272,7 @@ int main(int argc, char * argv[]) {
 #endif
 		} else {
 			/* MPC runs locally */
+			data->stats_int[MPC_STATS_INT_OFFLOAD] = 0;
 #ifdef PRINT_PROBLEM
 			sprintf(tmp, "%02luB", k);
 			strcat(tmp, s_sol);

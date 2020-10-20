@@ -44,10 +44,11 @@
 
 /* Statistics */
 #define MPC_STATS_DBL_LEN  1   /* how many double statistics */
-#define MPC_STATS_INT_LEN  0   /* how many int statistics */
+#define MPC_STATS_INT_LEN  1   /* how many int statistics */
 
 /* Statistics IDs */
-#define MPC_STATS_DBL_TIME 0   /* time taken for MPC computation */
+#define MPC_STATS_DBL_TIME 0      /* time taken for MPC computation */
+#define MPC_STATS_INT_OFFLOAD 0   /* 1: offloaded, 0: local */
  
 /*
  * MPC server configuration parameters. The server IP may be
