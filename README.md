@@ -16,8 +16,8 @@ If all needed libraries are installed, then all compilation should properly happ
 
 #### Content
   * `mpc_ctrl.c` is the MPC controller in charge of reading the state from and writing the input to a shared memory area. The shared memory is the communication buffer between the `mpc_ctrl` and the system to be controlled. The system to be controlled may be
-  **simulated by Matlab (see for example the [mpc_offloading_matlab](https://github.com/ebni/mpc_offloading_matlab) repo), 
-  **running with ROS, or else
+    * simulated by Matlab (see for example the [mpc_offloading_matlab](https://github.com/ebni/mpc_offloading_matlab) repo), 
+    * running with ROS, or else
   The program `mpc_ctrl` may make all the computations or off-load part/all of it to a server
   * `mpc_server.c` launches a server which listen for client wishing to solve an instance of an MPC problem
   * `mpc_interface.h` is a C header file which includes the declarations needed to use the MPC controller (such as the shared memory). Such file **must be included** by the application wishing to use the MPC controller (ROS, Matlab or else)
