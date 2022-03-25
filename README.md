@@ -2,11 +2,12 @@
 This library offers several programs to run Model-Predictive Control (MPC). All programs are written in C for higher efficiency. 
 
 #### Requirements
+* [JSOC-C Library](http://json-c.github.io/json-c/), which yu can get by ```sudo apt install libjson-c-dev```
 * [GNU Scientific Library (GSL)](https://www.gnu.org/software/gsl/), which you can get by
-```sudo apt-get install libgsl-dev```
+```sudo apt install libgsl-dev```
 Such a library is used to perform martix/vector operations
 * [GNU Linear Programming Kit (GLPK)](https://www.gnu.org/software/glpk/), which you can get by
-```sudo apt-get install libglpk-dev```
+```sudo apt install libglpk-dev```
 In future developments, the GLPK library may be replaced C++ [COIN-OR](https://github.com/coin-or) libraries, as they seem more efficient and more actively developed.
 
 #### Compilation
@@ -14,7 +15,10 @@ If all needed libraries are installed, then all compilation should properly happ
 ```make all```
 
 #### Content
-  * `mpc_ctrl.c` is the MPC controller in charge of reading the state from and writing the input to a shared memory area. This program may make all the computations or off-load part/all of it to a server
+  * `mpc_ctrl.c` is the MPC controller in charge of reading the state from and writing the input to a shared memory area. The shared memory is the communication buffer between the `mpc_ctrl` and the system to be controlled. The system to be controlled may be
+  **simulated by Matlab (see for example the [mpc_offloading_matlab](https://github.com/ebni/mpc_offloading_matlab) repo), 
+  **running with ROS, or else
+  The program `mpc_ctrl` may make all the computations or off-load part/all of it to a server
   * `mpc_server.c` launches a server which listen for client wishing to solve an instance of an MPC problem
   * `mpc_interface.h` is a C header file which includes the declarations needed to use the MPC controller (such as the shared memory). Such file **must be included** by the application wishing to use the MPC controller (ROS, Matlab or else)
   * `trace_proc.c` is a used to trace the scheduling events of some processes. In the MPC context is used to monitor the schedule of MPC execution, although its usage is not strictly bound to MPC.
