@@ -29,6 +29,13 @@
 *.dylib
 
 # Executables
+app_workload
+manager
+mpc_conf
+mpc_ctrl
+mpc_matlab.mexa64
+mpc_server
+sim_plant
 *.exe
 *.out
 *.app
