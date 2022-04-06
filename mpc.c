@@ -10,6 +10,8 @@
 #include "dyn.h"
 #include "mpc.h"
 
+//TODO: test comment
+
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
