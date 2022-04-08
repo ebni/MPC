@@ -44,8 +44,8 @@ mpc_matlab.mexa64: mpc_matlab.c
 
 matlab: mpc_matlab.mexa64
 
-all: mpc_server mpc_ctrl sim_plant app_workload matlab manager mpc_conf
+all: mpc_server mpc_ctrl sim_plant matlab
 
 clean:
-	rm -rf *.o *~ mpc mpc_server mpc_client
+	rm -rf *.o *~ mpc mpc_server mpc_ctrl
 

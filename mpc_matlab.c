@@ -20,7 +20,14 @@
 #define STRING_ERROR(x) "%s:%d errno=%i, %s\n",	\
 		__FILE__, __LINE__, errno, (x)
 
-/* The gateway function */
+/**
+ * @brief this function is the gateway between matlab and the mpc library
+ * 
+ * @param nlhs size of plhs
+ * @param plhs data to send to matlab, corresponds to array of left-side output arguments 
+ * @param nrhs size of prhs
+ * @param prhs data received from matlab, corresponds to array of right-side output arguments
+ */
 void mexFunction( int nlhs, mxArray *plhs[],
                   int nrhs, const mxArray *prhs[])
 {
@@ -100,7 +107,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	sem_wait(data->sems+MPC_SEM_INPUT_WRITTEN);
 
 	/* Create a Matlab vector to pass the MPC input */
-	plhs[0] = mxCreateDoubleMatrix(1, (mwSize)data->input_num, mxREAL);
+	plhs[0] = mxCreateDoubleMatrix(1, (mwSize)data->input_num, mxREAL); 
 	
 	/* Get a pointer to the real data of the Matlab input vector  */
 #if MX_HAS_INTERLEAVED_COMPLEX

@@ -35,7 +35,7 @@
 
 
 /* Semapohore stuff */
-#define MPC_SEM_NUM            2   /* how many semaphores used */
+#define MPC_SEM_NUM            3 /*2*/  /* how many semaphores used */
 #define MPC_SEM_STATE_WRITTEN  0   /* +1: plant; -1 MPC controller */
 #define MPC_SEM_INPUT_WRITTEN  1   /* +1: MPC controller; -1 plant */
 
