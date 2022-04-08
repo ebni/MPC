@@ -36,19 +36,21 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	int shm_id, offloaded;
 	struct shared_data * data;
 	char error_string[1024];
-	double * shared_state;
-	double * shared_input;
+	double * shared_state; /*from c to matlab*/
+	double * shared_input; /*from matlab to c*/
+	double * shared_u;
 	
 	/* check for proper number of arguments */
-	if(nrhs!=1) {
+	if(nrhs!=2 && nrhs != 1) {
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:nrhs",
 				  "The state is a necessary argument.");
 	}
+	
 	if(nlhs < 1) {
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:nlhs",
 				  "At least one output required.");
 	}
-	
+
 	/* Make sure the state argument is type double */
 	if(!mxIsDouble(prhs[0]) || mxIsComplex(prhs[0])) {
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:notDouble",
@@ -76,10 +78,16 @@ void mexFunction( int nlhs, mxArray *plhs[],
 				  "Unable to open shared memory");
 	}
 	data = (struct shared_data *)shmat(shm_id, NULL, 0);
-	printf("MPC_MATLAB: VALORE U: %d\n", data->u); //EXP:stampa di u
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+data->state_num;
-	
+	if (nrhs == 2) {
+		shared_u = mxGetPr(prhs[1]);
+		printf("shared u: %lf\n", shared_u[0]);
+		data->u = *shared_u;
+	}
+	printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
+	//shared_u = data->u;
+	//printf("MPC_MATLAB: VALORE U: %d\n", shared_u); //EXP:stampa di u
 	/* State must have the same dimension as in mpc_interface.h */
 	if(n == 1) {
 		state_num = m;
@@ -124,6 +132,11 @@ void mexFunction( int nlhs, mxArray *plhs[],
 		offloaded = data->stats_int[MPC_STATS_INT_OFFLOAD];
 		plhs[2] = mxCreateDoubleScalar(offloaded);
 	}
+	
+	/* if(nlhs >= 4) {
+		double u_out = data->u;
+		plhs[3] = mxCreateDoubleScalar(u_out);
+	} */
 	
 	/* Finally detaching shared memory */
 	shmdt(data);
