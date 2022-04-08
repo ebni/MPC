@@ -69,6 +69,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 				  "Unable to open shared memory");
 	}
 	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	printf("MPC_MATLAB: VALORE U: %d\n", data->u); //EXP:stampa di u
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+data->state_num;
 	

@@ -182,8 +182,9 @@ int main(int argc, char * argv[]) {
 	      sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
+	data->u = 42; //TODO: valore da passare in memoria condivisa
 	MPC_OFFLOAD_ENABLE(data);
-	
+	printf("MPC_CTRL: VALORE U: %d\n", data->u);
 	/* Resetting all semaphores */
 	for (i=0; i<MPC_SEM_NUM; i++) {
 		if (sem_init(data->sems+i,1,0) < 0) {

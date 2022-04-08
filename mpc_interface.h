@@ -61,6 +61,7 @@ struct shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
 	size_t state_num;            /* number of states */
 	size_t input_num;            /* number of inputs */
+	int u;						 /*test value 42*/
 #if MPC_STATS_INT_LEN
 	int stats_int[MPC_STATS_INT_LEN];
 #endif
