@@ -10,8 +10,6 @@
 #include "dyn.h"
 #include "mpc.h"
 
-//TODO: test comment
-
 /* Put this macro where debugging is needed */
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
@@ -38,6 +36,17 @@
  * the corresponding sampling interval.  The last input labelled U(XX)
  * is  held  constant   until  the  end  of   the  prediction  horizon
  * mpc->model->H.
+ */
+
+/**
+ * @brief Adding  the variables  for  the  control input  to  the MPC  problem
+ * pointed  by  mpc.
+ * 
+ * @param mpc mpc_glpk* contain the representation of the MPC problem
+ * @param in  struct json_object* json object containing initialization data read from file
+ * @note mpc model must be initialized 
+ * @note The json object must have the field "len_ctrl",  
+ * 		 number of steps in which a new input is applied initialized
  */
 void mpc_input_addvar(mpc_glpk * mpc, struct json_object * in)
 {
@@ -70,6 +79,11 @@ void mpc_input_addvar(mpc_glpk * mpc, struct json_object * in)
 	}
 }
 
+/**
+ * @brief //TODO finish write brief
+ * 
+ * @param mpc mpc_glpk*	The representation of the MPC problem
+ */
 void mpc_input_norm_addvar(mpc_glpk * mpc)
 {
 	char s[200];
@@ -129,6 +143,16 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
  * - GLPK variables of mpc->op be initialized
  * - the JSON object in have the following fields:
  *     "input_bounds", array of lower/upper bound of input
+ */
+
+/**
+ * @brief Set the bound on the input variables.
+ * 
+ * @param mpc mpc_glpk* contain the representation of the MPC problem
+ * @param in  struct json_object* json object containing initialization data read from file
+ * @note GLPK control variables of mpc->op be initialized
+ * @note The JSON object in must have the "input_bounds" field,
+ * 	     array of lower/upper bound of input, initialized
  */
 void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
 {
@@ -212,6 +236,16 @@ void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
  * - the JSON object in have the following fields:
  *     "input_rate_max", array of max input rates be initiaized
  */
+
+/**
+ * @brief Add constraints on maximum admissible rate of inputs.
+ * 
+ * @param mpc mpc_glpk* contain the representation of the MPC problem
+ * @param in  struct json_object* json object containing initialization data read from file
+ * @note GLPK control variables of mpc->op be initialized
+ * @note The JSON object in must have the "input_rate_max" field,
+ * 	     array of max input rates, initialized 
+ */
 void mpc_input_set_delta(mpc_glpk * mpc, struct json_object * in)
 {
 	char s[200];
@@ -288,6 +322,18 @@ void mpc_input_set_delta(mpc_glpk * mpc, struct json_object * in)
  *     "input_rate_max", array of max input rates be initiaized
  * - the parameter u0 be set with last input
  */
+
+/**
+ * @brief Add  constraints  on  maximum/minimum  first  input  based  on  max
+ * admissible  rate of  inputs and  last applied  input.
+ * 
+ * @param mpc mpc_glpk* 			The representation of the MPC problem 
+ * @param u0  const gsl_vector * 	last applied input
+ * @note GLPK control control variables of mpc->op be initialized
+ * @note The JSON object in have the field "input_rate_max", 
+ * 		 array of max input rates, initiaized
+ * @note The parameter u0 must be set with last input
+ */
 void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
 {
 	gsl_vector *lo, *up;
@@ -338,6 +384,18 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
  *       compute the state infty-norm
  * After a successful  invocation mpc->v_Ninf_X is equal to  the index of
  * the first variable of this type.
+ */
+
+/**
+ * @brief Add (mpc->model->H) variables corresponding to the infty-norm of
+ * the state from X(1) to X(H).
+ * 
+ * @param mpc mpc_glpk* 			The representation of the MPC problem
+ * @param in  struct json_object* 	json object containing initialization data read from file
+ * @note  GLPK control variables of mpc->op must be initialized
+ * @note  The JSON object in have the "state_weight" field, 
+ * 		  array of weight of each element of the state to
+ *        compute the state infty-norm, initialized
  */
 void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
 {
@@ -510,6 +568,13 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
  * - the JSON object in have the following fields:
  *     "state_bounds", array of lower/upper bound of the state
  */
+
+/**
+ * @brief Set the bound on the state variables.
+ * 
+ * @param mpc mpc_glpk*				The representation of the MPC problem
+ * @param in  struct json_object* 	JSON object containing initialization data read from file
+ */
 void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in)
 {
 	size_t i,j,k,num_vars;
@@ -608,6 +673,14 @@ void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in)
 /*
  * Update the initial state of the plant.
  */
+
+/**
+ * @brief Update the initial state of the plant and the goal of the
+ * optimization accordingly.
+ * 
+ * @param mpc mpc_glpk*	The representation of the MPC problem
+ * @note  The initial state must be previously stored in mpc->x0.
+ */
 void mpc_update_x0(mpc_glpk * mpc) {
 	gsl_vector *x_k;
 	int id_normZ, id_Xbnds;
@@ -691,6 +764,26 @@ void mpc_update_x0(mpc_glpk * mpc) {
  *     state is  weighted as  described in  "min_steps_to_zero" (hence
  *     "coef"  needs  to   b  defined),  the  input   is  weighted  by
  *     "input_weight"
+ */
+
+/**
+ * @brief Set the goal of the MPC optimization.
+ * 
+ * @param mpc mpc_glpk*				The representation of the MPC problem
+ * @param in  struct json_object* 	JSON object containing initialization data read from file
+ * @note  The JSON object in have the "cost_model" field,
+ * 		  an object describing the model of cost to be
+ *        used, initialized. Such an object must have the string filed "type"
+ *        describing the type of cost model.
+ * @note  Depending on the cost model (which are selected by "type", other
+ * 		  initializations may be needed. 
+ * @note  Currently, the following "type" of "cost_model" are implemented:
+ *   	  "min_steps_to_zero", tries to reach a zero norm state (norm being
+ *     	  defined as  weighted infty-norm  by the  weights "state_weight"
+ *     	  set in  mpc_state_norm_addvar(...)) in  the smallest  number of
+ *     	  steps. This is achieved giving exponentially incresing costs to
+ *     	  state norms  over time. The  field "coef"  is the base  of such
+ *     	  exponential.
  */
 void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 {
@@ -801,6 +894,13 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
  * Warm up the  MPC with initial zero  state and solve it  so that the
  * initial basis are initialized, etc.
  */
+
+/**
+ * @brief  Warm up the  MPC with initial zero state and solve it so that the
+ * initial basis are initialized, etc.
+ * 
+ * @param mpc mpc_glpk*	The representation of the MPC problem
+ */
 void mpc_warmup(mpc_glpk * mpc)
 {
 	mpc->x0 = gsl_vector_calloc(mpc->model->n);
@@ -821,6 +921,14 @@ void mpc_warmup(mpc_glpk * mpc)
  * possibly with varying size.
  */
 
+/**
+ * @brief Model the presence of an obstacle by adding BINARY (not continuous)
+ * variables.
+ * 
+ * @param mpc 	 mpc_glpk*	The representation of the MPC problem
+ * @param center double*	Position of the obstacle to avoid
+ * @param size 	 double*	Size of the obstacle to avoid
+ */
 void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size)
 {
 	size_t i, j, k, constr_num, num_vars=0;
@@ -1062,6 +1170,14 @@ void mpc_goal_min_final(mpc_glpk * mpc) {
  * solver  state  is  the  row/column basic/non-basic  status  of  the
  * corresponding LP problem
  */
+
+/**
+ * @brief Allocate the struct for storing/re-storing the status of
+ * the MPC  problem passed as  parameter.
+ * 
+ * @param  mpc mpc_glpk*	The representation of the MPC problem
+ * @return 	   mpc_status*	The struct containing the status of the mpc problem 
+ */
 mpc_status * mpc_status_alloc(const mpc_glpk * mpc)
 {
 	mpc_status * tmp;
@@ -1094,6 +1210,11 @@ mpc_status * mpc_status_alloc(const mpc_glpk * mpc)
 	return tmp;
 }
 
+/**
+ * @brief free mpc_status
+ * 
+ * @param sol_st mpc_status* Solution state
+ */
 void mpc_status_free(mpc_status * sol_st)
 {
 	free(sol_st->block);
@@ -1103,6 +1224,14 @@ void mpc_status_free(mpc_status * sol_st)
 /*
  * Set the  initial state x0  from sol_st->state to  the corresponding
  * field in mpc
+ */
+
+/**
+ * @brief Set the  initial state x0  from sol_st->state to  the corresponding
+ * field in mpc
+ * 
+ * @param mpc    mpc_glpk*			The representation of the MPC problem
+ * @param sol_st const mpc_status*	Solution state
  */
 void mpc_status_set_x0(mpc_glpk * mpc, const mpc_status * sol_st)
 {
@@ -1117,6 +1246,16 @@ void mpc_status_set_x0(mpc_glpk * mpc, const mpc_status * sol_st)
  * the optimization  problem accordingly.  In case  GLPK is  used, the
  * solver  state  is  the  row/column basic/non-basic  status  of  the
  * corresponding LP problem
+ */
+
+/**
+ * @brief Get the status of the solver from the parameter sol_st and update
+ * the optimization problem accordingly.
+ * 
+ * @param mpc    mpc_glpk*			The representation of the MPC problem
+ * @param sol_st const mpc_status*	Solution state
+ * @note In case GLPK is used, the solver state is the row/column 
+ * 		 basic/non-basic status of the corresponding LP problem
  */
 void mpc_status_resume(mpc_glpk * mpc, const mpc_status * sol_st)
 {
@@ -1150,6 +1289,15 @@ void mpc_status_resume(mpc_glpk * mpc, const mpc_status * sol_st)
  * GLPK is  used, the solver  state is the  row/column basic/non-basic
  * status of the corresponding LP problem
  */
+
+/**
+ * @brief Store the status of the solver in the corresponding struct.
+ * 
+ * @param mpc    const mpc_glpk*	The representation of the MPC problem
+ * @param sol_st mpc_status*		Solution state
+ * @note  In case GLPK is used, the solver state is the row/column basic/non-basic
+ * 		  status of the corresponding LP problem
+ */
 void mpc_status_save(const mpc_glpk * mpc, mpc_status * sol_st)
 {
 	int i;
@@ -1174,6 +1322,13 @@ void mpc_status_save(const mpc_glpk * mpc, mpc_status * sol_st)
 	}
 }
 
+/**
+ * @brief Print the solver status (mostly for debugging purpose)
+ * 
+ * @param f 	 FILE*				File stream where to print
+ * @param mpc    const mpc_glpk*	The representation of the MPC problem
+ * @param sol_st const mpc_status*	Solution state
+ */
 void mpc_status_fprintf(FILE *f,
 			const mpc_glpk * mpc, const mpc_status * sol_st)
 {
