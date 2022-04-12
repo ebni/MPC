@@ -1,3 +1,10 @@
+/**
+ * @file mpc.c
+ * @brief implementation of the library mpc.h
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #define HAVE_INLINE
 #include <stdio.h>
 #include <strings.h>

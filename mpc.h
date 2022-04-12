@@ -1,13 +1,16 @@
+/**
+ * @file mpc.h 
+ * @brief  Formulating a  Model-Predictive Control  (MPC) problem as  a Linear
+ * Programming  (LP) problem.  Then  solving  it via  the  GNU LP  Kit
+ * (GLPK).
+ */
+
 #ifndef _MPC_H_
 #define _MPC_H_
 #include <glpk.h>
 #include "dyn.h"
 
-/*
- * Formulating a  Model-Predictive Control  (MPC) problem as  a Linear
- * Programming  (LP) problem.  Then  solving  it via  the  GNU LP  Kit
- * (GLPK).
- */
+
 typedef struct {
 	dyn_plant *model; /* the plant */
 	gsl_vector *x0;   /* initial state */

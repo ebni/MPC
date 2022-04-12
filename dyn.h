@@ -1,3 +1,10 @@
+/**
+ * @file dyn.h
+ * @brief implementation of //todo:finish me!!!
+ * 
+ */
+
+
 #ifndef _DYN_H_
 #define _DYN_H_
 #include <json-c/json.h>

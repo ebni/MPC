@@ -1,3 +1,8 @@
+/**
+ * @file dyn.c
+ * @brief impementation of dyn.h
+ */
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <strings.h>

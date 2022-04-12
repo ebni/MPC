@@ -1,5 +1,6 @@
-/*
- * The interaction  between the MPC  controller and the  plant happens
+/**
+ * @file mpc_interface.h
+ * @brief   The interaction  between the MPC  controller and the  plant happens
  * via shared memory. It is  expected that the interaction follows the
  * steps:
  *
@@ -20,8 +21,8 @@
  * example, because  another MPC controller  is up and  running), then
  * macro MPC_SHM_KEY must also be set  to another unused key agreed by
  * the MPC controller and the plant.
+ * 
  */
-
 #ifndef _MPC_INTERFACE_H_
 #define _MPC_INTERFACE_H_
 
