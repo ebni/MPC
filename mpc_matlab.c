@@ -72,6 +72,9 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	 * Now we have all data. We can open the shared memory. 
 	 * Must be created earlier (by mpc_ctrl.c)
 	 */
+	/*
+	*  TODO:
+	*/
 	shm_id = shmget(MPC_SHM_KEY, 0, 0);
 	if (shm_id == -1) {
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:shmget",

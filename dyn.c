@@ -275,7 +275,7 @@ void dyn_state_dynamics(const dyn_plant * p, const gsl_vector * x_0, const gsl_m
 	u_cur = gsl_vector_calloc(p->m);	
 	gsl_vector_memcpy(x_cur, x_0);
 	for(i = 0; i < p->H; gsl_matrix_set_col(x_full, i, x_cur), i++) {
-		gsl_blas_dgemv(CblasNoTrans, 1, p->Ad[0], x_cur , 0, x_next);
+		gsl_blas_dgemv(CblasNoTrans, 1, p->Ad[0], x_cur , 0, x_next); //!< used to do product between a matrix and a vector
 		x_aux = x_next;
 		x_next = x_cur;
 		x_cur = x_aux;
