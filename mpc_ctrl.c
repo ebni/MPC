@@ -68,10 +68,26 @@ int shm_id;
  * Set prio priority (high number => high priority) and pin the
  * invoking process to CPU cpu_id
  */
+
+/**
+ * @brief Set prio priority (high number => high priority) and pin the
+ * invoking process to CPU cpu_id
+ * 
+ * @param prio   uint32_t the priority of the process 
+ * @param cpu_id int id of the process
+ */
 void sched_set_prio_affinity(uint32_t prio, int cpu_id);
 
 /*
  * Initializing the model with JSON file
+ */
+
+/**
+ * @brief  Initializing the model with JSON filr 
+ * 
+ * @param mpc mpc_glpk* contain the representation of the MPC problem
+ * @param in  struct json_object* json object containing initialization data read from file
+ * @return int 0 if no error 
  */
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 
@@ -80,12 +96,28 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
  * also terminate on other standard terminating signals. Upon process
  * termination, the shared memory is removed.
  */
+
+/**
+ * @brief Signal handler. This process will terminate only on Ctrl-C. It will
+ * also terminate on other standard terminating signals. Upon process
+ * termination, the shared memory is removed.
+ * 
+ * @param signum int  
+ */
 void term_handler(int signum);
 
 /*
  * Handling  the segmentation  fault  signal (SIGSEGV).  By setting  a
  * breakpoint within  the signal handler,  it is then possible  to see
  * what is the line of code which generated the error.
+ */
+
+/**
+ * @brief Handling  the segmentation  fault  signal (SIGSEGV).  By setting  a
+ * breakpoint within  the signal handler,  it is then possible  to see
+ * what is the line of code which generated the error.
+ * 
+ * @param signum int 
  */
 void seg_fault_handler(int signum);
 
