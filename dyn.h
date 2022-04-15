@@ -1,6 +1,6 @@
 /**
  * @file dyn.h
- * @brief implementation of //todo:finish me!!!
+ * @brief this library define dyn functions //FIXME
  * 
  */
 

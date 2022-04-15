@@ -1,3 +1,7 @@
+/**
+ * @file mpc_matlab.c
+ * @brief  this file is used for implement the communication between the c part of MCP and the matlab code 
+ */
 /*
  * The calling syntax is:
  *

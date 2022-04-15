@@ -1,3 +1,8 @@
+/**
+ * @file mpc_conf.c
+ * @brief  this file set the setting of the shared memory and decide to enable or disable the MPC_OFFLOAD  //check me
+ *  
+ */
 #include <stdio.h>
 #include <errno.h>
 #include <sys/ipc.h>

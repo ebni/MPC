@@ -1,3 +1,8 @@
+/**
+ * @file test_mpc_shm_ctrl.c
+ * @brief this code was used to test the shared memory
+ *  // BUG:delete me 
+ */
 #include <time.h>
 #include <stdio.h>
 #include <sys/ipc.h>

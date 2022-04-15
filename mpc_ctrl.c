@@ -12,6 +12,16 @@
  *   mpc_interface.h is assumed
  */
 
+/**
+ * @file mpc_ctrl.c
+ * @brief MPC controller. It must be initialized with a JSON model which must
+ * be passed as first parameter (argv[1]).
+ * @note argv[1], filename of the JSON file describing th problem [MANDATORY]
+ * @note argv[2],  IP  address  of  the  MPC  server  [OPTIONAL].  If  not
+ *   specified,  the  value  of  the macro  MPC_SOLVER_IP  defined  in
+ *   mpc_interface.h is assumed
+ */
+
 #define _GNU_SOURCE
 #include "mpc_interface.h"
 #define STRLEN_COMMAND 100
