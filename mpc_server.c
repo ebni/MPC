@@ -1,3 +1,12 @@
+/**
+ * @file mpc_server.c
+ *
+ * @brief MPC server solves the problem formulated by the JSON
+ * model <JSON model> . The server is listening behind the ports set by
+ * the PORT_* #define
+ * 
+ * @note This is code should be invoked as: ./mpc_server <JSON model>
+ */
 #define _GNU_SOURCE
 #include <stdio.h> 
 #include <strings.h> 
@@ -79,6 +88,14 @@
  * Set prio priority (high number => high priority) and pin the
  * invoking process to CPU cpu_id
  */
+
+/**
+ * @brief Set priority and pin the invoking process to a CPU
+ * 
+ * @param prio 	 New priority of the process
+ * @param cpu_id Id of the cpu to which the invoking process is to be pinned on
+ * @note priority high number => high priority
+ */
 void sched_set_prio_affinity(uint32_t prio, int cpu_id);
 
 /*
@@ -88,10 +105,28 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id);
  * parameters  param. The  two  vectors  x and  u  must be  previously
  * allocated.
  */
+
+/**
+ * @brief MPC controller: computes the control law u by MPC from the state x 
+ * and the param parameters.
+ * 
+ * @param x 	const gsl_vector*	State vector
+ * @param u 	gsl_vector*			Input vector (control law)
+ * @param param void* 				Parameters to be passed to control law	//FIXME what is control law?
+ * @note x and u vectors must be allocated previously
+ */
 void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param);
 
 /*
  * Initializing the model with JSON file
+ */
+
+/**
+ * @brief Initialize the model with JSON file
+ * 
+ * @param  mpc mpc_glpk*			The representation of the MPC problem
+ * @param  in  struct json_object*	JSON object used to contain input read from file
+ * @return int 						0 if it terminates correctly
  */
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 
@@ -104,6 +139,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
  * model <JSON model>. The server is listening behind the ports set by
  * the PORT_* #define
  */
+
 int main(int argc, char *argv[]) {
 	mpc_glpk my_mpc;
 #ifdef CLIENT_MATLAB
@@ -306,6 +342,7 @@ int main(int argc, char *argv[]) {
  * parameters  param. The  two  vectors  x and  u  must be  previously
  * allocated.
  */
+
 void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 {
 	mpc_glpk *my_mpc;
