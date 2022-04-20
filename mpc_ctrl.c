@@ -168,7 +168,7 @@ int main(int argc, char * argv[]) {
 		PRINT_ERROR("Too few arguments. At least 1 needed: <JSON model>");
 		return -1;
 	}
-
+       //IDEA: place where add code for the selection mode of the sh
 	/* Reading the JSON file with the problem model */
 	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
 		PRINT_ERROR("Missing/wrong JSON file");
