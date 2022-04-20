@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
 	/* Getting the size of the file */
 	size = lseek(model_fd, 0, SEEK_END);
 	lseek(model_fd, 0, SEEK_SET);
-
+   
 	/* Allocate the buffer and store data */
 	buffer = malloc((size_t)size);
 	size = read(model_fd, buffer, (size_t)size);
@@ -190,6 +190,9 @@ int main(int argc, char *argv[]) {
 	model_json = json_tokener_parse_ex(tok, buffer, (int)size);
 	free(buffer);
 
+	
+	//IDEA: place to check how use U
+	
 	/* Initializing the model */
 	model_mpc_startup(&my_mpc, model_json);
 
