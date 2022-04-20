@@ -168,12 +168,17 @@ int main(int argc, char * argv[]) {
 		PRINT_ERROR("Too few arguments. At least 1 needed: <JSON model>");
 		return -1;
 	}
-       //IDEA: place where add code for the selection mode of the sh
+	  /*
+	  
+	  */
 	/* Reading the JSON file with the problem model */
 	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
 		PRINT_ERROR("Missing/wrong JSON file");
 		return -1;
 	}
+	/*
+		
+	*/
 	/* Getting the size of the file */
 	size = lseek(model_fd, 0, SEEK_END);
 	lseek(model_fd, 0, SEEK_SET);
@@ -224,7 +229,6 @@ int main(int argc, char * argv[]) {
 	      sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
-	//data->u = 42; //TODO: valore da passare in memoria condivisa
 	MPC_OFFLOAD_ENABLE(data);
 	
 	/* Resetting all semaphores */
@@ -256,6 +260,12 @@ int main(int argc, char * argv[]) {
 	if (argc >= 3) {
 		/* using command-line arg as IP address */
 		servaddr.sin_addr.s_addr = inet_addr(argv[2]);
+		/*
+		if(arg[3]==1){
+			TODO: MPC_PREDICTIVE_MODE_ENABLED(data);
+		}
+		
+		*/
 	} else {
 		/* using the default IP address */
 		servaddr.sin_addr.s_addr = inet_addr(MPC_SOLVER_IP);

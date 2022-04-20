@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
 	socklen_t len;
 	struct sockaddr_in servaddr, cliaddr;
 	
+	
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
 		return -1;
