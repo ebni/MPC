@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
 	free(buffer);
 
 	
-	//IDEA: place to check how use U
+	//TODO: place to check how use U
 	
 	/* Initializing the model */
 	model_mpc_startup(&my_mpc, model_json);

@@ -43,6 +43,10 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	double * shared_state; /*from c to matlab*/
 	double * shared_input; /*from matlab to c*/
 	double * shared_u;
+    
+
+	//TODO:place where check MCP_PREDICTIVE_MODE_IS_ENABLED
+	
 	
 	/* check for proper number of arguments */
 	if(nrhs!=2 && nrhs != 1) {
