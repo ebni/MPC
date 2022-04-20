@@ -41,7 +41,12 @@
 #define MPC_SEM_INPUT_WRITTEN  1   /* +1: MPC controller; -1 plant */
 
 /* Configuration flags */
-#define MPC_OFFLOAD 0x01     /* if set, off-load MPC computation */
+#define MPC_OFFLOAD 0x01    /* if set, off-load MPC computation */
+
+/*  if set, predictive mode is active and u0 
+	vector is passed as parameter and 
+	is used to predict u1 */
+#define MPC_PREDICTIVE_MODE 0x02 
 
 /* Statistics */
 #define MPC_STATS_DBL_LEN  1   /* how many double statistics */
@@ -91,6 +96,14 @@ struct shared_data {
 #define MPC_OFFLOAD_ENABLE(var)       var->flags |= MPC_OFFLOAD;
 #define MPC_OFFLOAD_DISABLE(var)      var->flags &= ~((uint32_t)MPC_OFFLOAD);
 #define MPC_OFFLOAD_IS_ENABLED(var)   (var->flags & MPC_OFFLOAD)
-
+/*
+ * The following three macros rispectively enable, disable, and check, 
+ * the predictive mode. The  macro parameter is the "var" is
+ * a pointer to a struct share_data  which should be declared  by the
+ * user. 
+ */
+#define MPC_PREDICTIVE_MODE_ENABLE(var) var->flags |= MPC_PREDICTIVE_MODE;
+#define MPC_PREDICTIVE_MODE_DISABLE(var) var->flags &= ~((uint32_t)MPC_PREDICTIVE_MODE);
+#define MPC_PREDICTIVE_MODE_IS_ENABLED(var) (var->flags & MPC_PREDICTIVE_MODE)
 
 #endif /* _MPC_INTERFACE_H_ */
