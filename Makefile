@@ -3,7 +3,7 @@
 #LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -L/home/asctec/usrlocal/lib -Wl,-rpath -Wl,/home/asctec/usrlocal/lib
 
 # Working flages elsewhere
-CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g
+CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g -pg
 LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread
 
 
@@ -41,3 +41,5 @@ run_ctrl:
 
 run_matlab:
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
+
+run:run_server run_ctrl #run_matlab

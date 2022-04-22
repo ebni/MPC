@@ -67,8 +67,8 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	}
     
 	/* Check that at least one among rows/cols must be 1 */
-	n = mxGetN(prhs[0]);
-	m = mxGetM(prhs[0]);
+	n = mxGetN(prhs[0]); //EXP:returns the number of columns in the specified mxArray
+	m = mxGetM(prhs[0]); //EXP:returns the number of rows in the specified mxArray
 	if(n!=1 && m!=1) {
 		snprintf(error_string, sizeof(error_string),
 			 "wrong input size: getN=%i, getM=%i",
@@ -92,6 +92,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	data = (struct shared_data *)shmat(shm_id, NULL, 0);
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+data->state_num;
+
 	if (nrhs == 2) {
 		shared_u = mxGetPr(prhs[1]);
 		printf("shared u: %lf\n", shared_u[0]);
@@ -146,7 +147,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	}
 	
 	/* if(nlhs >= 4) {
-		double u_out = data->u;
+		int  u_out = data->u;
 		plhs[3] = mxCreateDoubleScalar(u_out);
 	} */
 	
