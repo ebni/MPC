@@ -1,5 +1,6 @@
 /**
  * @file test_mpc_shm_ctrl.c
+ * @author Enrico	Bini
  * @brief this code was used to test the shared memory
  *  // BUG:delete me 
  */

@@ -1,5 +1,6 @@
 /**
  * @file mpc_matlab.c
+ * @author Enrico	Bini
  * @brief  this file is used for implement the communication between the c part of MCP and the matlab code 
  */
 /*

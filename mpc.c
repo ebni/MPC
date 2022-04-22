@@ -1,7 +1,7 @@
 /**
  * @file mpc.c
+ * @author Enrico	Bini
  * @brief implementation of the library mpc.h
- * 
  * @copyright Copyright (c) 2022
  * 
  */

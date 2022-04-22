@@ -1,5 +1,6 @@
 /**
  * @file mpc_interface.h
+ * @author Enrico	Bini
  * @brief   The interaction  between the MPC  controller and the  plant happens
  * via shared memory. It is  expected that the interaction follows the
  * steps:

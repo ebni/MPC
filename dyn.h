@@ -1,5 +1,6 @@
 /**
  * @file dyn.h
+ * @author Enrico	Bini
  * @brief this library define dyn functions //FIXME
  * 
  */

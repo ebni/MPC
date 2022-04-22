@@ -1,6 +1,6 @@
 /**
  * @file mpc_server.c
- *
+ * @author Enrico	Bini
  * @brief MPC server solves the problem formulated by the JSON
  * model <JSON model> . The server is listening behind the ports set by
  * the PORT_* #define

@@ -1,3 +1,9 @@
+/**
+ * @file test_sys.c
+ * @author Enrico	Bini
+ * @brief this code is used for test the sync between matlab and c part of MPC 
+  // BUG:delete me
+ */
 #include <stdio.h>
 #include <strings.h>
 #include <string.h>

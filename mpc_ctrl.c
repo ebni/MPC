@@ -14,6 +14,7 @@
 
 /**
  * @file mpc_ctrl.c
+ * @author Enrico	Bini
  * @brief MPC controller. It must be initialized with a JSON model which must
  * be passed as first parameter (argv[1]).
  * @note argv[1], filename of the JSON file describing th problem [MANDATORY]

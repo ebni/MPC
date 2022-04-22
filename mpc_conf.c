@@ -1,5 +1,6 @@
 /**
  * @file mpc_conf.c
+ * @author Enrico	Bini
  * @brief  this file set the setting of the shared memory and decide to enable or disable the MPC_OFFLOAD  //check me
  *  
  */

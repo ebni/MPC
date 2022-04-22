@@ -1,5 +1,6 @@
 /**
  * @file mpc.h 
+ * @author Enrico	Bini
  * @brief  Formulating a  Model-Predictive Control  (MPC) problem as  a Linear
  * Programming  (LP) problem.  Then  solving  it via  the  GNU LP  Kit
  * (GLPK).

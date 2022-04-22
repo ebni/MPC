@@ -1,5 +1,6 @@
 /**
  * @file dyn.c
+ * @author Enrico	Bini
  * @brief impementation of dyn.h
  */
 
