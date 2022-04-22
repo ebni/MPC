@@ -42,4 +42,16 @@ run_ctrl:
 run_matlab:
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
 
-run:run_server run_ctrl #run_matlab
+run:run_server run_ctrl run_matlab
+
+run_c:run_server run_ctrl
+
+gprof_server:
+	gprof mpc_server gmon.out > doc/prof_server.txt
+gprof_ctrl:
+	gprof mpc_ctrl gmon.out > doc/prof_ctrl.txt
+
+gprof_conf:
+	gprof mpc_conf gmon.out > doc/prof_conf.txt
+
+all_gprof: gprof_server gprof_ctrl gprof_conf
