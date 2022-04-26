@@ -287,7 +287,7 @@ int main(int argc, char * argv[]) {
 	log_rec = malloc(LOG_REC_SIZE);
 	bzero(log_rec, LOG_REC_SIZE);
 #endif
-
+        printf("MPC Ctrl start...\n");
 	/* 
 	 * Cycling forever to get the state of the plant. Ctrl-C will
 	 * terminate
