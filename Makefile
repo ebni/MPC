@@ -8,7 +8,7 @@ LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread
 
 
 .PHONY: clean
-all: mpc_server mpc_ctrl mpc_conf
+all: mpc_server mpc_ctrl mpc_conf make_matlab
 
 mpc_server: mpc_server.o mpc.o dyn.o
 	gcc mpc_server.o mpc.o dyn.o $(LDFLAGS) -o mpc_server
@@ -50,8 +50,5 @@ gprof_server:
 	gprof mpc_server gmon.out > doc/prof_server.txt
 gprof_ctrl:
 	gprof mpc_ctrl gmon.out > doc/prof_ctrl.txt
-
-gprof_conf:
-	gprof mpc_conf gmon.out > doc/prof_conf.txt
 
 all_gprof: gprof_server gprof_ctrl gprof_conf
