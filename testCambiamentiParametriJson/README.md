@@ -7,7 +7,8 @@ t2 ha come parametri len_horizon=5 len_ctrl=5
 t3 ha come parametri len_horizon=10 len_ctrl=5
 t4 ha come parametri len_horizon=30 len_ctrl=5
 t5 ha come parametri len_horizon=10 len_ctrl=10
-
+t6 ha come parametri len_horizon=45 len_ctrl=5
+t7 ha come parametri len_horizon=50 len_ctrl=10 -> iteration: 2622, time: 26.32
 
 con len_ctrl che ha definisce il numero di input del problema MPC
 con len_horizon che è il numero di passi che che il sistema calcola preventivamente
