@@ -4,7 +4,7 @@
 
 # Working flages elsewhere
 CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g -pg
-LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread
+LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -pg
 
 
 .PHONY: clean
@@ -34,10 +34,10 @@ clean:
 	rm -rf *.o *~ mpc mpc_server mpc_client
 
 run_server:
-	gnome-terminal --tab -- bash -c "sudo ./mpc_server test.json; exec bash -i"
+	gnome-terminal --tab -- bash -c "cd server; sudo ../mpc_server ../test.json; exec bash -i"
 
 run_ctrl:
-	gnome-terminal --tab -- bash -c "sudo ./mpc_ctrl test.json; exec bash -i"
+	gnome-terminal --tab -- bash -c " cd client; sudo ../mpc_ctrl ../test.json; exec bash -i"
 
 run_matlab:
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
@@ -46,9 +46,10 @@ run:run_server run_ctrl run_matlab
 
 run_c:run_server run_ctrl
 
+
 gprof_server:
-	gprof mpc_server gmon.out > doc/prof_server.txt
+	gprof mpc_server server/gmon.out > testCambiamentiParametriJson/t4/prof_server.txt
 gprof_ctrl:
-	gprof mpc_ctrl gmon.out > doc/prof_ctrl.txt
+	gprof mpc_ctrl client/gmon.out > testCambiamentiParametriJson/t4/prof_ctrl.txt
 
 all_gprof: gprof_server gprof_ctrl 

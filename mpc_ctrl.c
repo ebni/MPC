@@ -54,11 +54,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <limits.h> 
 #include <stdio.h>
-#include <unistd.h>
 #include <time.h>
 #include <fcntl.h>
 #include <string.h>

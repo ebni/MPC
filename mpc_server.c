@@ -28,6 +28,8 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_sf_exp.h>
 #include <glpk.h>
+#include <signal.h>
+#include <stdlib.h>
 #include "dyn.h"
 #include "mpc.h"
 #include "mpc_interface.h"
@@ -129,6 +131,21 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param);
  * @return int 						0 if it terminates correctly
  */
 int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
+void term_handler(int signum);
+
+void term_handler(int signum)
+{
+	/* Removing shared memory object */
+	switch (signum) {
+	case SIGINT:
+		exit(0);
+	case SIGHUP:
+	case SIGPIPE:
+	case SIGTERM:
+	case SIGSEGV:
+		exit(-1);
+	}
+}
 
 /*
  * This is code should be invoked as:
@@ -142,6 +159,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 
 int main(int argc, char *argv[]) {
 	mpc_glpk my_mpc;
+	struct sigaction sa;
 #ifdef CLIENT_MATLAB
 	gsl_vector *x, *u;	
 	size_t i;
@@ -168,7 +186,6 @@ int main(int argc, char *argv[]) {
 	socklen_t len;
 	struct sockaddr_in servaddr, cliaddr;
 	
-	
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
 		return -1;
@@ -179,6 +196,16 @@ int main(int argc, char *argv[]) {
 		PRINT_ERROR("Missing/wrong file");
 		return -1;
 	}
+
+	/* Setting up the signal handler for termination */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = term_handler;
+	sigaction(SIGHUP, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGPIPE, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGSEGV, &sa, NULL);
+
 	/* Getting the size of the file */
 	size = lseek(model_fd, 0, SEEK_END);
 	lseek(model_fd, 0, SEEK_SET);

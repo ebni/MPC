@@ -95,10 +95,10 @@ void mexFunction( int nlhs, mxArray *plhs[],
 
 	if (nrhs == 2) {
 		shared_u = mxGetPr(prhs[1]);
-		printf("shared u: %lf\n", shared_u[0]);
+	//	printf("shared u: %lf\n", shared_u[0]);
 		data->u = *shared_u;
 	}
-	printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
+//	printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
 	//shared_u = data->u;
 	//printf("MPC_MATLAB: VALORE U: %d\n", shared_u); //EXP:stampa di u
 	/* State must have the same dimension as in mpc_interface.h */
