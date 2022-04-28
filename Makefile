@@ -5,9 +5,12 @@
 # Working flages elsewhere
 CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g -pg
 LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -pg
+T =
+ifndef $(T)
+	T = t
+endif
 
-
-.PHONY: clean
+.PHONY: all
 all: mpc_server mpc_ctrl mpc_conf matlab
 
 mpc_server: mpc_server.o mpc.o dyn.o
@@ -28,28 +31,42 @@ dyn.o: dyn.c dyn.h Makefile
 mpc_matlab.mexa64: mpc_matlab.c
 	mex -O -v mpc_matlab.c
 
+.PHONY: matlab
 matlab: mpc_matlab.mexa64
 
+.PHONY: clean
 clean:
 	rm -rf *.o *~ mpc mpc_server mpc_client
 
+.PHONY: run_server
 run_server:
 	gnome-terminal --tab -- bash -c "cd server; sudo ../mpc_server ../test.json; exec bash -i"
 
+.PHONY: run_ctrl
 run_ctrl:
 	gnome-terminal --tab -- bash -c " cd client; sudo ../mpc_ctrl ../test.json; exec bash -i"
 
+.PHONY: run_matlab
 run_matlab:
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
 
-run:run_server run_ctrl run_matlab
+.PHONY: run_matlab_alt
+run_matlab_alt:
+	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl -nosplash -nodesktop -r "run runsim.m"; exec bash -i"
+	
 
-run_c:run_server run_ctrl
+.PHONY: run
+run: run_server run_ctrl run_matlab
+
+.PHONY: run_c
+run_c: run_server run_ctrl
 
 
 gprof_server:
-	gprof mpc_server server/gmon.out > testCambiamentiParametriJson/t4/prof_server.txt
-gprof_ctrl:
-	gprof mpc_ctrl client/gmon.out > testCambiamentiParametriJson/t4/prof_ctrl.txt
+	gprof mpc_server server/gmon.out > testCambiamentiParametriJson/$(T)/prof_server.txt
 
+gprof_ctrl:
+	gprof mpc_ctrl client/gmon.out > testCambiamentiParametriJson/$(T)/prof_ctrl.txt
+
+.PHONY: all_gprof
 all_gprof: gprof_server gprof_ctrl 
