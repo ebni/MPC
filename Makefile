@@ -55,8 +55,11 @@ run_matlab:
 .PHONY: run_matlab_alt
 run_matlab_alt:
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl -nosplash -nodesktop -r "launch"; exec bash -i"
-	
 
+.PHONY: run_matlab_alt_autoclose
+run_matlab_alt_autoclose:
+	gnome-terminal --tab -- bash -i -c "cd ../matlab_sim; matlab -softwareopengl -nosplash -nodesktop -r "launch"; xdotool key --clearmodifiers Ctrl+Shift+W key --clearmodifiers KP_Enter"
+	
 .PHONY: run
 run: run_server run_ctrl run_matlab
 
@@ -72,3 +75,4 @@ gprof_ctrl:
 
 .PHONY: all_gprof
 all_gprof: gprof_server gprof_ctrl 
+
