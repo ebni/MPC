@@ -307,12 +307,12 @@ void mpc_input_set_delta(mpc_glpk * mpc, struct json_object * in)
 			val[1] = -1;
 			val[2] = 1;
 			glp_set_mat_row(mpc->op, id, 2, ind, val);
-#ifdef USE_SAMPLED
+	#ifdef USE_SAMPLED
 			glp_set_row_bnds(mpc->op, id, GLP_DB,
 					 -bnd[j]*mpc->model->tau, bnd[j]*mpc->model->tau);
-#else
+	#else
 			glp_set_row_bnds(mpc->op, id, GLP_DB, -bnd[j], bnd[j]);
-#endif
+	#endif
 		}
 	}
 	free(ind);
@@ -719,17 +719,17 @@ void mpc_update_x0(mpc_glpk * mpc) {
 						 GLP_LO, -x_ik, DONTCARE);
 			} else {
 				/* no weight to this component of the state */
-#if 1 /* setting a very large upper bound */
-				glp_set_row_bnds(mpc->op, id_normZ++,
-						 GLP_UP, DONTCARE, 1e10);
-				glp_set_row_bnds(mpc->op, id_normZ++,
-						 GLP_UP, DONTCARE, 1e10);
-#else /* setting infinity as upper bound */
-				glp_set_row_bnds(mpc->op, id++,
-						 GLP_FR, DONTCARE, DONTCARE);
-				glp_set_row_bnds(mpc->op, id++,
-						 GLP_FR, DONTCARE, DONTCARE);
-#endif
+				#if 1 /* setting a very large upper bound */
+					glp_set_row_bnds(mpc->op, id_normZ++,
+							GLP_UP, DONTCARE, 1e10);
+					glp_set_row_bnds(mpc->op, id_normZ++,
+							GLP_UP, DONTCARE, 1e10);
+				#else /* setting infinity as upper bound */
+								glp_set_row_bnds(mpc->op, id++,
+										GLP_FR, DONTCARE, DONTCARE);
+								glp_set_row_bnds(mpc->op, id++,
+										GLP_FR, DONTCARE, DONTCARE);
+				#endif
 			}
 
 			/* Updating RHS of state bound constraints */
@@ -1348,16 +1348,17 @@ void mpc_status_fprintf(FILE *f,
 	for (i = 0; i < mpc->model->m; i++) {
 		fprintf(f, "%f\t", sol_st->input[i]);
 	}
-#if 0  /* Let's omit the basic status for a while */
-	fprintf(f, "\nRow status\n");
-	for (i = 1; i <= (size_t)glp_get_num_rows(mpc->op); i++) {
-		fprintf(f, "%d\t", sol_st->row_stat[i]);
-	}
-	fprintf(f, "\nColumns status\n");
-	for (i = 1; i <= (size_t)glp_get_num_cols(mpc->op); i++) {
-		fprintf(f, "%d\t", sol_st->col_stat[i]);
-	}
-#endif
+	#if 0  /* Let's omit the basic status for a while */
+		fprintf(f, "\nRow status\n");
+		for (i = 1; i <= (size_t)glp_get_num_rows(mpc->op); i++) {
+			fprintf(f, "%d\t", sol_st->row_stat[i]);
+		}
+		fprintf(f, "\nColumns status\n");
+		for (i = 1; i <= (size_t)glp_get_num_cols(mpc->op); i++) {
+			fprintf(f, "%d\t", sol_st->col_stat[i]);
+		}
+	#endif
+	
 	fprintf(f, "\nSteps: %d\n", *sol_st->steps_bdg);
 	fprintf(f, "Time: %f\n", *sol_st->time_bdg);
 	fprintf(f, "Primal status: %d\n", *sol_st->prim_stat);
