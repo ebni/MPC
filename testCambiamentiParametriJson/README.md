@@ -1,3 +1,4 @@
+//da modificare
 questa cartella contiene le sottocartelle conteneti le analisi fatte con 
 gpfrof delle esecuzioni del progetto con parametri diversi durante ogni 
 esecuzione
