@@ -157,21 +157,22 @@ void term_handler(int signum)
  * the PORT_* #define
  */
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
 	mpc_glpk my_mpc;
 	struct sigaction sa;
-#ifdef CLIENT_MATLAB
-	gsl_vector *x, *u;	
-	size_t i;
-#endif
-#ifdef CLIENT_SOLVER
-	mpc_status * mpc_st;
-#endif
-#ifdef TEST_PARTIAL_OPTIMIZATION
-	struct timespec tic, toc;
-	double time;
-	int num;
-#endif
+	#ifdef CLIENT_MATLAB
+		gsl_vector *x, *u;	
+		size_t i;
+	#endif
+	#ifdef CLIENT_SOLVER
+		mpc_status * mpc_st;
+	#endif
+	#ifdef TEST_PARTIAL_OPTIMIZATION
+		struct timespec tic, toc;
+		double time;
+		int num;
+	#endif
 	int model_fd;
 	char * buffer;
 	ssize_t size;
@@ -209,7 +210,7 @@ int main(int argc, char *argv[]) {
 	/* Getting the size of the file */
 	size = lseek(model_fd, 0, SEEK_END);
 	lseek(model_fd, 0, SEEK_SET);
-   
+	
 	/* Allocate the buffer and store data */
 	buffer = malloc((size_t)size);
 	size = read(model_fd, buffer, (size_t)size);
@@ -225,11 +226,11 @@ int main(int argc, char *argv[]) {
 	model_mpc_startup(&my_mpc, model_json);
 
 	/* Opening socket and all server stuff */
-#ifdef CLIENT_MATLAB
-	port = PORT_MATLAB;
-#else
-	port = MPC_SOLVER_PORT;
-#endif
+	#ifdef CLIENT_MATLAB
+		port = PORT_MATLAB;
+	#else
+		port = MPC_SOLVER_PORT;
+	#endif
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);         
 	bzero(&servaddr, sizeof(servaddr)); 
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
@@ -248,114 +249,114 @@ int main(int argc, char *argv[]) {
 	sched_setaffinity(0, sizeof(my_mask), &my_mask); */
 	
 	/* Pre-allocating vectors */
-#ifdef CLIENT_MATLAB
-	x = gsl_vector_calloc(my_mpc.model->n);
-	u = gsl_vector_calloc(my_mpc.model->m);
-	buf_in   = (unsigned long *)x->data;
-	buf_out  = (unsigned long *)u->data;
-	size_in  = sizeof(*buf_in)*x->size;
-	size_out = sizeof(*buf_out)*u->size;
-#endif
-#ifdef CLIENT_SOLVER
-	mpc_st = mpc_status_alloc(&my_mpc);
-	buf_in = buf_out = mpc_st->block;
-	size_in = size_out = mpc_st->size;
-#endif
+	#ifdef CLIENT_MATLAB
+		x = gsl_vector_calloc(my_mpc.model->n);
+		u = gsl_vector_calloc(my_mpc.model->m);
+		buf_in   = (unsigned long *)x->data;
+		buf_out  = (unsigned long *)u->data;
+		size_in  = sizeof(*buf_in)*x->size;
+		size_out = sizeof(*buf_out)*u->size;
+	#endif
+	#ifdef CLIENT_SOLVER
+		mpc_st = mpc_status_alloc(&my_mpc);
+		buf_in = buf_out = mpc_st->block;
+		size_in = size_out = mpc_st->size;
+	#endif
 	/* Server cycle: Listening forever  */
 	for (k=0; /* never stop */; k++) {
 		len = sizeof(cliaddr);
-#ifdef TEST_PARTIAL_OPTIMIZATION
-		num = (int)
-#endif
-		  recvfrom(listenfd, buf_in, size_in, 
-				    0, (struct sockaddr*)&cliaddr, &len);
-#ifdef CLIENT_MATLAB
-		/* 
-		 * Receiving  the   state  x  via  an   UDP  datagram.
-		 * REMEMBER: both buf_in AND x->data point to the same
-		 * memory area. Hence, receiving  on buf_in will write
-		 * to x
-		 */
-		/* Swap bytes to be meaningful */
-		for (i=0; i < x->size; i++) {
-			buf_in[i] = bswap_64(buf_in[i]);
-		}
-#ifdef PRINT_LOG
-		printf("k=%06lu\n\trecv %d bytes.  State x:",
-		       k, num);
-		gsl_vector_pretty(stdout, x, "%7.3f");
-#endif /* PRINT_LOG */
+		#ifdef TEST_PARTIAL_OPTIMIZATION
+			num = (int)
+		#endif
+		recvfrom(listenfd, buf_in, size_in, 
+			    0, (struct sockaddr*)&cliaddr, &len);
+		#ifdef CLIENT_MATLAB
+			/* 
+			* Receiving  the   state  x  via  an   UDP  datagram.
+			* REMEMBER: both buf_in AND x->data point to the same
+			* memory area. Hence, receiving  on buf_in will write
+			* to x
+			*/
+			/* Swap bytes to be meaningful */
+			for (i=0; i < x->size; i++) {
+				buf_in[i] = bswap_64(buf_in[i]);
+			}
+			#ifdef PRINT_LOG
+				printf("k=%06lu\n\trecv %d bytes.  State x:",
+					k, num);
+				gsl_vector_pretty(stdout, x, "%7.3f");
+			#endif /* PRINT_LOG */
 
-		/* Getting steps and time of simplex */
-		num = (long)glp_get_it_cnt(my_mpc.op);
-		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-		ctrl_by_mpc(x, u, &my_mpc);
-		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-		num = glp_get_it_cnt(my_mpc.op) - num;
-		time =  (double)(toc.tv_sec-tic.tv_sec);
-		time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
-#ifdef PRINT_LOG
-		printf("\t\t\tInput u:");
-		gsl_vector_pretty(stdout, u, "%7.3f");
-		printf("\tsteps: %5d, time: %e\n", num, time);
-#endif /* PRINT_LOG */
-
-		/* Preparing the buffer and sending */
-		for (i=0; i < u->size; i++) {
-			buf_out[i] = bswap_64(buf_out[i]);
-		}
-#endif /* CLIENT_MATLAB */
-#ifdef CLIENT_SOLVER
-#ifdef PRINT_LOG
-		printf("MESSAGE: %ld\n", k);
-		fprintf(stdout, "status received\n");
-		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
-#endif /* PRINT_LOG */
-		/* 
-		 * Condition to launch MPC server: current solution is
-		 * not optimal and we have budgets
-		 */
-#ifdef TEST_PARTIAL_OPTIMIZATION /* OLD CODE: TO BE FIXED */
-		if ((*mpc_st->prim_stat != GLP_FEAS ||
-		     *mpc_st->dual_stat != GLP_FEAS) &&
-		    *mpc_st->steps_bdg > 0 && *mpc_st->time_bdg > 0) {
-			/* Resuming the status of the solver just received */
-			mpc_status_resume(&my_mpc, mpc_st);
-		
-			/* Solve it by Simplex and measure time/steps */
-			num = glp_get_it_cnt(my_mpc.op);
+			/* Getting steps and time of simplex */
+			num = (long)glp_get_it_cnt(my_mpc.op);
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-			glp_simplex(my_mpc.op, my_mpc.param);
+			ctrl_by_mpc(x, u, &my_mpc);
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
 			num = glp_get_it_cnt(my_mpc.op) - num;
 			time =  (double)(toc.tv_sec-tic.tv_sec);
 			time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
+			#ifdef PRINT_LOG
+					printf("\t\t\tInput u:");
+					gsl_vector_pretty(stdout, u, "%7.3f");
+					printf("\tsteps: %5d, time: %e\n", num, time);
+			#endif /* PRINT_LOG */
 
-			/* Storing used budget */
-			*mpc_st->steps_bdg = num;
-			*mpc_st->time_bdg  = time;
+			/* Preparing the buffer and sending */
+			for (i=0; i < u->size; i++) {
+				buf_out[i] = bswap_64(buf_out[i]);
+			}
+		#endif /* CLIENT_MATLAB */
+		#ifdef CLIENT_SOLVER
+			#ifdef PRINT_LOG
+					printf("MESSAGE: %ld\n", k);
+					fprintf(stdout, "status received\n");
+					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+			#endif /* PRINT_LOG */
+				/* 
+				* Condition to launch MPC server: current solution is
+				* not optimal and we have budgets
+				*/
+			#ifdef TEST_PARTIAL_OPTIMIZATION /* OLD CODE: TO BE FIXED */
+					if ((*mpc_st->prim_stat != GLP_FEAS ||
+						*mpc_st->dual_stat != GLP_FEAS) &&
+						*mpc_st->steps_bdg > 0 && *mpc_st->time_bdg > 0) {
+						/* Resuming the status of the solver just received */
+						mpc_status_resume(&my_mpc, mpc_st);
+					
+						/* Solve it by Simplex and measure time/steps */
+						num = glp_get_it_cnt(my_mpc.op);
+						clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+						glp_simplex(my_mpc.op, my_mpc.param);
+						clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+						num = glp_get_it_cnt(my_mpc.op) - num;
+						time =  (double)(toc.tv_sec-tic.tv_sec);
+						time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
 
-			/* Saving the updated solver status: ready to send */
-			mpc_status_save(&my_mpc, mpc_st);
-		} else {
-			/* Do nothing. Just set to 0 the used budgets */
-			*mpc_st->steps_bdg = 0;
-			*mpc_st->time_bdg  = 0;
-		}
-#else
-		/* update initial state */
-		mpc_status_set_x0(&my_mpc, mpc_st);
-		glp_simplex(my_mpc.op, my_mpc.param);
-		mpc_status_save(&my_mpc, mpc_st);
-#endif  /* TEST_PARTIAL_OPTIMIZATION */
-#ifdef PRINT_LOG
-		printf("MESSAGE: %ld\n", k);
-		fprintf(stdout, "status after optimization\n");
-		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
-#endif /* PRINT_LOG */
-#endif /* CLIENT_SOLVER */
+						/* Storing used budget */
+						*mpc_st->steps_bdg = num;
+						*mpc_st->time_bdg  = time;
+
+						/* Saving the updated solver status: ready to send */
+						mpc_status_save(&my_mpc, mpc_st);
+					} else {
+						/* Do nothing. Just set to 0 the used budgets */
+						*mpc_st->steps_bdg = 0;
+						*mpc_st->time_bdg  = 0;
+					}
+			#else
+					/* update initial state */
+					mpc_status_set_x0(&my_mpc, mpc_st);
+					glp_simplex(my_mpc.op, my_mpc.param);
+					mpc_status_save(&my_mpc, mpc_st);
+			#endif  /* TEST_PARTIAL_OPTIMIZATION */
+			#ifdef PRINT_LOG
+					printf("MESSAGE: %ld\n", k);
+					fprintf(stdout, "status after optimization\n");
+					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+			#endif /* PRINT_LOG */
+		#endif /* CLIENT_SOLVER */
 		sendto(listenfd, buf_out, size_out, 0, 
-		       (struct sockaddr*)&cliaddr, sizeof(cliaddr));
+		    (struct sockaddr*)&cliaddr, sizeof(cliaddr));
 	}
 
 	/* Free all */
@@ -390,9 +391,8 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 
 	/* Getting the solution. FIXME: need a more efficient way */
 	for (i = 0; i < my_mpc->model->m; i++) {
-		gsl_vector_set(u, i,
-			       glp_get_col_prim(my_mpc->op,
-						my_mpc->v_U+(int)i));
+		gsl_vector_set(u, i, glp_get_col_prim(my_mpc->op,
+			my_mpc->v_U+(int)i));
 	}
 }
 
@@ -404,19 +404,19 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	/* Init the solver control parameters */
 	mpc->param = malloc(sizeof(*(mpc->param)));
 	glp_init_smcp(mpc->param);
-#ifdef DEBUG_SIMPLEX
-	mpc->param->msg_lev = GLP_MSG_DBG; /* all messages */
-	mpc->param->out_frq = 1;           /* output every iteration */
-#else
-	mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
-#endif
+	#ifdef DEBUG_SIMPLEX
+		mpc->param->msg_lev = GLP_MSG_DBG; /* all messages */
+		mpc->param->out_frq = 1;           /* output every iteration */
+	#else
+		mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
+	#endif
 	mpc->param->meth    = GLP_DUAL;    /* dual simplex */
 
-#if 1
-	mpc->param->it_lim  = INT_MAX;     /* max num of iterations */
-#else
-	mpc->param->it_lim  = 15;     /* max num of iterations */
-#endif
+	#if 1
+		mpc->param->it_lim  = INT_MAX;     /* max num of iterations */
+	#else
+		mpc->param->it_lim  = 15;     /* max num of iterations */
+	#endif
 
 	/* Initialize the plant */
 	mpc->model = malloc(sizeof(*(mpc->model)));
@@ -472,23 +472,23 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-#if SCHED_SETATTR_IN_SCHED_H
-	/* EB: TO BE TESTED */
-	struct sched_attr attr;
-	
-	bzero(&attr, sizeof(attr));
-	attr.size = sizeof(attr);
-	attr.sched_policy = SCHED_FIFO;
-	attr.sched_priority = prio;
-	if (sched_setattr(0, &attr, 0) != 0) {
-		PRINT_ERROR("sched_setattr");
-		exit(-1);
-	}
-#else
-	char launched[STRLEN_COMMAND];  /* String with launched command */
+	#if SCHED_SETATTR_IN_SCHED_H
+		/* EB: TO BE TESTED */
+		struct sched_attr attr;
+		
+		bzero(&attr, sizeof(attr));
+		attr.size = sizeof(attr);
+		attr.sched_policy = SCHED_FIFO;
+		attr.sched_priority = prio;
+		if (sched_setattr(0, &attr, 0) != 0) {
+			PRINT_ERROR("sched_setattr");
+			exit(-1);
+		}
+	#else
+		char launched[STRLEN_COMMAND];  /* String with launched command */
 
-	snprintf(launched, STRLEN_COMMAND,
-		 "sudo chrt -f -p %d %d", prio, getpid());
-	system(launched);
-#endif
+		snprintf(launched, STRLEN_COMMAND,
+			"sudo chrt -f -p %d %d", prio, getpid());
+		system(launched);
+	#endif
 }
