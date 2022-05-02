@@ -98,7 +98,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	//	printf("shared u: %lf\n", shared_u[0]);
 		data->u = *shared_u;
 	}
-//	printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
+	//printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
 	//shared_u = data->u;
 	//printf("MPC_MATLAB: VALORE U: %d\n", shared_u); //EXP:stampa di u
 	/* State must have the same dimension as in mpc_interface.h */
@@ -110,16 +110,16 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	}
 	if (state_num != data->state_num) {
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:wrongSize",
-				  "Wrong size of the state.");
+			"Wrong size of the state.");
 		shmdt(data);
 	}
 
 	/* Create a pointer to the real data in the state vector  */
-#if MX_HAS_INTERLEAVED_COMPLEX
-	state_rd = mxGetDoubles(prhs[0]);
-#else
-	state_rd = mxGetPr(prhs[0]);
-#endif
+	#if MX_HAS_INTERLEAVED_COMPLEX
+		state_rd = mxGetDoubles(prhs[0]);
+	#else
+		state_rd = mxGetPr(prhs[0]);
+	#endif
 	memcpy(shared_state, state_rd, sizeof(state_rd[0])*state_num);
 
 	/* Now asking MPC to compute the optimal input for us... */
@@ -131,11 +131,11 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	plhs[0] = mxCreateDoubleMatrix(1, (mwSize)data->input_num, mxREAL); 
 	
 	/* Get a pointer to the real data of the Matlab input vector  */
-#if MX_HAS_INTERLEAVED_COMPLEX
-	input_wr = mxGetDoubles(plhs[0]);
-#else
-	input_wr = mxGetPr(plhs[0]);
-#endif
+	#if MX_HAS_INTERLEAVED_COMPLEX
+		input_wr = mxGetDoubles(plhs[0]);
+	#else
+		input_wr = mxGetPr(plhs[0]);
+	#endif
 	memcpy(input_wr, shared_input, sizeof(input_wr[0])*data->input_num);
 	if(nlhs >= 2) {
 		time = data->stats_dbl[MPC_STATS_DBL_TIME];
