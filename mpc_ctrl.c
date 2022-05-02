@@ -149,35 +149,31 @@ int main(int argc, char * argv[]) {
 	mpc_glpk my_mpc;
 	int sockfd;
 	struct sockaddr_in servaddr;
-#ifdef PRINT_PROBLEM
-	char s_sol[100] = SOL_FILENAME;
-	char tmp[100];
-#endif
-#ifdef PRINT_LOG
-	char * log_rec;
-	size_t offset_rec;
-	struct timespec after_wait, before_post;
-#define LOG_REC_SIZE (2*(30)+                   \
-		      15*data->state_num+	\
-		      15*data->input_num)	 
-#endif /* PRINT_LOG */
+	#ifdef PRINT_PROBLEM
+		char s_sol[100] = SOL_FILENAME;
+		char tmp[100];
+	#endif
+	#ifdef PRINT_LOG
+		char * log_rec;
+		size_t offset_rec;
+		struct timespec after_wait, before_post;
+	#define LOG_REC_SIZE (2*(30)+                   \
+				15*data->state_num+	\
+				15*data->input_num)	 
+	#endif /* PRINT_LOG */
 	
 
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. At least 1 needed: <JSON model>");
 		return -1;
 	}
-	  /*
 	  
-	  */
 	/* Reading the JSON file with the problem model */
 	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
 		PRINT_ERROR("Missing/wrong JSON file");
 		return -1;
 	}
-	/*
-		
-	*/
+	
 	/* Getting the size of the file */
 	size = lseek(model_fd, 0, SEEK_END);
 	lseek(model_fd, 0, SEEK_SET);
@@ -224,8 +220,8 @@ int main(int argc, char * argv[]) {
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+my_mpc.model->n;
 	bzero(data, sizeof(*data)+
-	      sizeof(*shared_state)*my_mpc.model->n+
-	      sizeof(*shared_input)*my_mpc.model->m);
+		sizeof(*shared_state)*my_mpc.model->n+
+	    sizeof(*shared_input)*my_mpc.model->m);
 	data->state_num = my_mpc.model->n;
 	data->input_num = my_mpc.model->m;
 	MPC_OFFLOAD_ENABLE(data);
@@ -238,21 +234,21 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	
-#ifdef PRINT_PROBLEM
-	glp_print_sol(my_mpc.op, "000glpk_sol.txt");
-#endif
+	#ifdef PRINT_PROBLEM
+		glp_print_sol(my_mpc.op, "000glpk_sol.txt");
+	#endif
 
 	/* Allocating struct of solver status after problem defined */
 	mpc_st = mpc_status_alloc(&my_mpc);
-	  
-#ifdef PRINT_PROBLEM
-	/* Save initial status */
-	mpc_status_save(&my_mpc, mpc_st);
-	fprintf(stdout, "Initial status\n");
-	mpc_status_fprintf(stdout, &my_mpc, mpc_st);
- 	glp_write_lp(my_mpc.op, NULL, "initial_mpc.txt");
-	glp_print_sol(my_mpc.op, "initial_sol.txt");
-#endif
+	
+	#ifdef PRINT_PROBLEM
+		/* Save initial status */
+		mpc_status_save(&my_mpc, mpc_st);
+		fprintf(stdout, "Initial status\n");
+		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+		glp_write_lp(my_mpc.op, NULL, "initial_mpc.txt");
+		glp_print_sol(my_mpc.op, "initial_sol.txt");
+	#endif
 
 	/* Setting up the socket to server */
 	bzero(&servaddr, sizeof(servaddr)); 
@@ -275,16 +271,16 @@ int main(int argc, char * argv[]) {
 	}
 	servaddr.sin_port = htons(MPC_SOLVER_PORT);
 	servaddr.sin_family = AF_INET;
-      
+
 	/* create and connect UPD socket */
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
 	if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
 		PRINT_ERROR("client: error in connect");
 
-#ifdef PRINT_LOG
-	log_rec = malloc(LOG_REC_SIZE);
-	bzero(log_rec, LOG_REC_SIZE);
-#endif
+	#ifdef PRINT_LOG
+		log_rec = malloc(LOG_REC_SIZE); //BUG: replace with calloc
+		bzero(log_rec, LOG_REC_SIZE);
+	#endif
         printf("MPC Ctrl start...\n");
 	/* 
 	 * Cycling forever to get the state of the plant. Ctrl-C will
@@ -296,14 +292,14 @@ int main(int argc, char * argv[]) {
 		clock_gettime(CLOCK_REALTIME, &after_wait);
 
 		/* Store the lastest solver status in mpc_st */
-#ifndef MPC_STATUS_X0_ONLY
-		mpc_status_save(&my_mpc, mpc_st);
-		*mpc_st->steps_bdg = INT_MAX;  /* max iterations */
-		*mpc_st->time_bdg = INT_MAX;   /* max seconds */
-		/* Setting the status of cur solution */
-		*mpc_st->prim_stat = GLP_INFEAS;
-		*mpc_st->dual_stat = GLP_FEAS;
-#endif /* MPC_STATUS_X0_ONLY */
+		#ifndef MPC_STATUS_X0_ONLY
+			mpc_status_save(&my_mpc, mpc_st);
+			*mpc_st->steps_bdg = INT_MAX;  /* max iterations */
+			*mpc_st->time_bdg = INT_MAX;   /* max seconds */
+			/* Setting the status of cur solution */
+			*mpc_st->prim_stat = GLP_INFEAS;
+			*mpc_st->dual_stat = GLP_FEAS;
+		#endif /* MPC_STATUS_X0_ONLY */
 		memcpy(mpc_st->state, shared_state,
 		       sizeof(*shared_state)*data->state_num);
 		if (data->flags & MPC_OFFLOAD) {
@@ -318,26 +314,26 @@ int main(int argc, char * argv[]) {
 			 * server is saved in mpc_st->input
 			 */
 
-			printf("MPC_CTRL: VALORE U: %lf\n", data->u);
-#ifdef PRINT_PROBLEM
-			sprintf(tmp, "%02luA", k);
-			strcat(tmp, s_sol);
-			glp_print_sol(my_mpc.op, tmp);
-#endif
+			//printf("MPC_CTRL: VALORE U: %lf\n", data->u);
+			#ifdef PRINT_PROBLEM
+				sprintf(tmp, "%02luA", k);
+				strcat(tmp, s_sol);
+				glp_print_sol(my_mpc.op, tmp);
+			#endif
 		} else {
 			/* MPC runs locally */
 			data->stats_int[MPC_STATS_INT_OFFLOAD] = 0;
-#ifdef PRINT_PROBLEM
-			sprintf(tmp, "%02luB", k);
-			strcat(tmp, s_sol);
-			glp_print_sol(my_mpc.op, tmp);
-#endif
-#ifndef MPC_STATUS_X0_ONLY
-			mpc_status_resume(&my_mpc, mpc_st);
-#else
-			/* update initial state */
-			mpc_status_set_x0(&my_mpc, mpc_st);
-#endif /* MPC_STATUS_X0_ONLY */
+			#ifdef PRINT_PROBLEM
+				sprintf(tmp, "%02luB", k);
+				strcat(tmp, s_sol);
+				glp_print_sol(my_mpc.op, tmp);
+			#endif
+			#ifndef MPC_STATUS_X0_ONLY
+				mpc_status_resume(&my_mpc, mpc_st);
+			#else
+				/* update initial state */
+				mpc_status_set_x0(&my_mpc, mpc_st);
+			#endif /* MPC_STATUS_X0_ONLY */
 			glp_simplex(my_mpc.op, my_mpc.param);
 			mpc_status_save(&my_mpc, mpc_st);
 		}
@@ -347,38 +343,38 @@ int main(int argc, char * argv[]) {
 		data->stats_dbl[MPC_STATS_DBL_TIME] +=
 			((double)(before_post.tv_nsec-after_wait.tv_nsec))*1e-9;
 
-#ifdef PRINT_PROBLEM
-		sprintf(tmp, "%02luC", k);
-		strcat(tmp, s_sol);
-		glp_print_sol(my_mpc.op, tmp);
-		mpc_status_save(&my_mpc, mpc_st);
-		mpc_status_fprintf(stdout, &my_mpc, mpc_st);
-#endif
+		#ifdef PRINT_PROBLEM
+			sprintf(tmp, "%02luC", k);
+			strcat(tmp, s_sol);
+			glp_print_sol(my_mpc.op, tmp);
+			mpc_status_save(&my_mpc, mpc_st);
+			mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+		#endif
 
 		/* Write solution and stats to shared mem and let the plant know */
 		memcpy(shared_input, mpc_st->input,
 		       sizeof(*shared_state)*data->input_num);
 		/* FIXME: add writing stats */
 		sem_post(data->sems+MPC_SEM_INPUT_WRITTEN);
-#ifdef PRINT_LOG
-		offset_rec = 0;
-		offset_rec += snprintf(log_rec+offset_rec,
-				       (LOG_REC_SIZE)-offset_rec,
-				       "%ld.%09ld,%ld.%09ld,",
-				       after_wait.tv_sec, after_wait.tv_nsec,
-				       before_post.tv_sec, before_post.tv_nsec);
-		for (i=0; i<data->state_num ; i++) {
+		#ifdef PRINT_LOG
+			offset_rec = 0;
 			offset_rec += snprintf(log_rec+offset_rec,
-					       (LOG_REC_SIZE)-offset_rec,
-					       "%6.3f,", shared_state[i]);
-		}
-		for (i=0; i<data->input_num ; i++) {
-			offset_rec += snprintf(log_rec+offset_rec,
-					       (LOG_REC_SIZE)-offset_rec,
-					       "%6.3f,", shared_input[i]);
-		}
-		printf("%s\n", log_rec);
-#endif /* PRINT_LOG */
+						(LOG_REC_SIZE)-offset_rec,
+						"%ld.%09ld,%ld.%09ld,",
+						after_wait.tv_sec, after_wait.tv_nsec,
+						before_post.tv_sec, before_post.tv_nsec);
+			for (i=0; i<data->state_num ; i++) {
+				offset_rec += snprintf(log_rec+offset_rec,
+							(LOG_REC_SIZE)-offset_rec,
+							"%6.3f,", shared_state[i]);
+			}
+			for (i=0; i<data->input_num ; i++) {
+				offset_rec += snprintf(log_rec+offset_rec,
+							(LOG_REC_SIZE)-offset_rec,
+							"%6.3f,", shared_input[i]);
+			}
+			printf("%s\n", log_rec);
+		#endif /* PRINT_LOG */
 	}
 }
 
@@ -391,11 +387,11 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 	/* Init the solver control parameters */
 	mpc->param = malloc(sizeof(*(mpc->param)));
 	glp_init_smcp(mpc->param);
-#ifdef DEBUG_SIMPLEX
-	mpc->param->msg_lev = GLP_MSG_DBG; /* all messages */
-#else
-	mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
-#endif
+	#ifdef DEBUG_SIMPLEX
+		mpc->param->msg_lev = GLP_MSG_DBG; /* all messages */
+	#else
+		mpc->param->msg_lev = GLP_MSG_OFF; /* no message */
+	#endif
 	mpc->param->meth    = GLP_DUAL;    /* dual simplex */
 	mpc->param->it_lim  = INT_MAX;     /* max num of iterations */
 
@@ -462,23 +458,22 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-#if SCHED_SETATTR_IN_SCHED_H
-	/* EB: TO BE TESTED */
-	struct sched_attr attr;
-	
-	bzero(&attr, sizeof(attr));
-	attr.size = sizeof(attr);
-	attr.sched_policy = SCHED_FIFO;
-	attr.sched_priority = prio;
-	if (sched_setattr(0, &attr, 0) != 0) {
-		PRINT_ERROR("sched_setattr");
-		exit(-1);
-	}
-#else
-	char launched[STRLEN_COMMAND];  /* String with launched command */
-
-	snprintf(launched, STRLEN_COMMAND,
-		 "sudo chrt -f -p %d %d", prio, getpid());
-	system(launched);
-#endif
+	#if SCHED_SETATTR_IN_SCHED_H
+		/* EB: TO BE TESTED */
+		struct sched_attr attr;
+		
+		bzero(&attr, sizeof(attr));
+		attr.size = sizeof(attr);
+		attr.sched_policy = SCHED_FIFO;
+		attr.sched_priority = prio;
+		if (sched_setattr(0, &attr, 0) != 0) {
+			PRINT_ERROR("sched_setattr");
+			exit(-1);
+		}
+	#else
+		char launched[STRLEN_COMMAND];  /* String with launched command */
+		snprintf(launched, STRLEN_COMMAND,
+			"sudo chrt -f -p %d %d", prio, getpid());
+		system(launched);
+	#endif
 }
