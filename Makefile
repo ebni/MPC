@@ -11,7 +11,10 @@ ifndef $(T)
 endif
 
 GPROF_FLAGS = 
-
+I =
+ifndef $(I)
+	I = 1 
+endif
 .PHONY: all
 all: mpc_server mpc_ctrl mpc_conf matlab
 
@@ -69,10 +72,24 @@ run_c: run_server run_ctrl
 
 gprof_server:
 	gprof  $(GPROF_FLAGS) mpc_server server/gmon.out > testCambiamentiParametriJson/$(T)/prof_server.txt
+# mv server/gmon.out server/gmon.out.$(I) 
 
 gprof_ctrl:
 	gprof $(GPROF_FLAGS)  mpc_ctrl client/gmon.out > testCambiamentiParametriJson/$(T)/prof_ctrl.txt
+# mv client/gmon.out client/gmon.out.$(I) 
 
 .PHONY: all_gprof
 all_gprof: gprof_server gprof_ctrl 
 
+.PHONY: gprof_sum_server
+gprof_sum_server:
+	gprof -s mpc_server server/gmon.out.*;
+	mv gmon.sum server/gmon.sum;
+	gprof mpc_server server/gmon.sum > server/prof_server_sum.txt
+
+gprof_sum_client:
+	gprof -s mpc_ctrl client/gmon.out.*;
+	mv gmon.sum client/gmon.sum;
+	gprof mpc_ctrl client/gmon.sum > client/prof_ctrl_sum.txt
+
+gprof_sum: gprof_sum_client gprof_sum_server
