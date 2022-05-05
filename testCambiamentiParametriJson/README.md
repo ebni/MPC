@@ -10,6 +10,8 @@ t4 ha come parametri len_horizon=30 len_ctrl=5
 t5 ha come parametri len_horizon=10 len_ctrl=10
 t6 ha come parametri len_horizon=45 len_ctrl=5
 t7 ha come parametri len_horizon=50 len_ctrl=10 -> iteration: 2622, time: 26.32
+t8 ha come parametri len_horizon=30    len_ctrl=
+
 
 t8  ha come parametri len_horizon=25 len_ctrl=5 -> iteration: 1422, time: 14.32
 t9  ha come parametri len_horizon=30 len_ctrl=5 -> iteration: 1462, time: 14.72
