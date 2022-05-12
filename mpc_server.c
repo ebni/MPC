@@ -42,6 +42,32 @@
 #define CLIENT_SOLVER
 #define PRINT_LOG
 
+#include <sys/stat.h>
+#include <fcntl.h>
+
+
+#define MARKER_FILE "/sys/kernel/tracing/trace_marker"
+#define BUF_LEN 100
+
+void print_mark(const char *msg);
+
+void print_mark(const char *msg)
+{
+	char s[BUF_LEN];
+	int marker_fd;
+	
+	marker_fd = open(MARKER_FILE, O_WRONLY);
+	if (marker_fd == -1) {
+		fprintf(stderr, "Error\n");
+	}
+	
+		snprintf(s,BUF_LEN,"%s\n",msg);
+		write(marker_fd, s, BUF_LEN);
+	
+	if(close(marker_fd)==-1)
+		exit(EXIT_FAILURE);
+}
+
 /*
  * Below are some #define which trigger something:
  *
@@ -85,6 +111,7 @@
 				__FILE__, __LINE__, errno, (x));}
 
 #define DONTCARE 0 /* any constant to be ignored */
+
 
 /*
  * Set prio priority (high number => high priority) and pin the
@@ -223,8 +250,9 @@ int main(int argc, char *argv[])
 	//TODO: place to check how use U
 	
 	/* Initializing the model */
+	print_mark("SERVER: @model_mpc_startup# - start");
 	model_mpc_startup(&my_mpc, model_json);
-
+	print_mark("SERVER: model_mpc_startup - end");
 	/* Opening socket and all server stuff */
 	#ifdef CLIENT_MATLAB
 		port = PORT_MATLAB;
@@ -258,7 +286,9 @@ int main(int argc, char *argv[])
 		size_out = sizeof(*buf_out)*u->size;
 	#endif
 	#ifdef CLIENT_SOLVER
+		print_mark("SERVER: mpc_status_alloc - start");
 		mpc_st = mpc_status_alloc(&my_mpc);
+		print_mark("SERVER: mpc_status_alloc - end");
 		buf_in = buf_out = mpc_st->block;
 		size_in = size_out = mpc_st->size;
 	#endif
@@ -268,8 +298,11 @@ int main(int argc, char *argv[])
 		#ifdef TEST_PARTIAL_OPTIMIZATION
 			num = (int)
 		#endif
+		print_mark("SERVER: recvfrom - start");		
 		recvfrom(listenfd, buf_in, size_in, 
 			    0, (struct sockaddr*)&cliaddr, &len);
+		print_mark("SERVER: recvfrom - end");
+		
 		#ifdef CLIENT_MATLAB
 			/* 
 			* Receiving  the   state  x  via  an   UDP  datagram.
@@ -345,8 +378,13 @@ int main(int argc, char *argv[])
 					}
 			#else
 					/* update initial state */
+					print_mark("SERVER: mpc_status_set_x0 - start");		
 					mpc_status_set_x0(&my_mpc, mpc_st);
+					print_mark("SERVER: mpc_status_set_x0 - end");		
+					print_mark("SERVER: glp_simplex - start");		
 					glp_simplex(my_mpc.op, my_mpc.param);
+					print_mark("SERVER: glp_simplex - end");
+						
 					mpc_status_save(&my_mpc, mpc_st);
 			#endif  /* TEST_PARTIAL_OPTIMIZATION */
 			#ifdef PRINT_LOG
@@ -355,8 +393,10 @@ int main(int argc, char *argv[])
 					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 			#endif /* PRINT_LOG */
 		#endif /* CLIENT_SOLVER */
+		print_mark("SERVER: sendto - start");		
 		sendto(listenfd, buf_out, size_out, 0, 
 		    (struct sockaddr*)&cliaddr, sizeof(cliaddr));
+		print_mark("SERVER: sendto - end");
 	}
 
 	/* Free all */
@@ -490,5 +530,32 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 		snprintf(launched, STRLEN_COMMAND,
 			"sudo chrt -f -p %d %d", prio, getpid());
 		system(launched);
+		printf("PID: %d\n", getpid());
 	#endif
 }
+
+/**************************************************************/
+//#define PROFILE
+#ifdef PROFILE
+typedef struct _profile {
+	void function();
+	unsigned int * function_calls;
+	double ** function_time;
+	double * function_total_time; 
+} profile;
+
+unsigned int n_func = 10;
+void * functions;
+functions = (void *) calloc(n_func, sizeof(void *));
+
+profile prof = {
+	.functions = functions;
+	.function_calls = (unsigned int) calloc(n_func, sizeof(unsigned int));
+	.function_time = (double **) calloc(n_func * 10000, sizeof(double));
+	.function_total_time = (double) calloc(n_func, sizeof(double));
+};
+
+void profile_function(int func, void * ret, );
+
+#endif
+/**************************************************************/
