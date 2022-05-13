@@ -106,4 +106,4 @@ report_server:
 report_client:
 	trace-cmd report -t | grep CLIENT  > report/trace_client.txt
 
-report: report_server record_client
+report: report_server report_client
