@@ -93,3 +93,17 @@ gprof_sum_client:
 	gprof mpc_ctrl client/gmon.sum > client/prof_ctrl_sum.txt
 
 gprof_sum: gprof_sum_client gprof_sum_server
+
+record_server:
+	sudo trace-cmd record -e sched_switch -F ./mpc_server test.json
+
+record_client:
+	sudo trace-cmd record -e sched_switch -F ./mpc_ctrl test.json
+
+report_server:
+	trace-cmd report -t | grep SERVER > report/trace_server.txt
+
+report_client:
+	trace-cmd report -t | grep CLIENT  > report/trace_client.txt
+
+report: report_server record_client
