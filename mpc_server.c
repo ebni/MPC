@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
 	/* Initializing the model */
 	print_mark("SERVER: @model_mpc_startup# - start");
 	model_mpc_startup(&my_mpc, model_json);
-	print_mark("SERVER: model_mpc_startup - end");
+	print_mark("SERVER: @model_mpc_startup# - end");
 	/* Opening socket and all server stuff */
 	#ifdef CLIENT_MATLAB
 		port = PORT_MATLAB;
@@ -286,9 +286,9 @@ int main(int argc, char *argv[])
 		size_out = sizeof(*buf_out)*u->size;
 	#endif
 	#ifdef CLIENT_SOLVER
-		print_mark("SERVER: mpc_status_alloc - start");
+		print_mark("SERVER: @mpc_status_alloc# - start");
 		mpc_st = mpc_status_alloc(&my_mpc);
-		print_mark("SERVER: mpc_status_alloc - end");
+		print_mark("SERVER: @mpc_status_alloc# - end");
 		buf_in = buf_out = mpc_st->block;
 		size_in = size_out = mpc_st->size;
 	#endif
@@ -298,10 +298,10 @@ int main(int argc, char *argv[])
 		#ifdef TEST_PARTIAL_OPTIMIZATION
 			num = (int)
 		#endif
-		print_mark("SERVER: recvfrom - start");		
+		print_mark("SERVER: @recvfrom# - start");		
 		recvfrom(listenfd, buf_in, size_in, 
 			    0, (struct sockaddr*)&cliaddr, &len);
-		print_mark("SERVER: recvfrom - end");
+		print_mark("SERVER: @recvfrom# - end");
 		
 		#ifdef CLIENT_MATLAB
 			/* 
@@ -378,12 +378,12 @@ int main(int argc, char *argv[])
 					}
 			#else
 					/* update initial state */
-					print_mark("SERVER: mpc_status_set_x0 - start");		
+					print_mark("SERVER: @mpc_status_set_x0# - start");		
 					mpc_status_set_x0(&my_mpc, mpc_st);
-					print_mark("SERVER: mpc_status_set_x0 - end");		
-					print_mark("SERVER: glp_simplex - start");		
+					print_mark("SERVER: @mpc_status_set_x0# - end");		
+					print_mark("SERVER: @glp_simplex# - start");		
 					glp_simplex(my_mpc.op, my_mpc.param);
-					print_mark("SERVER: glp_simplex - end");
+					print_mark("SERVER: @glp_simplex# - end");
 						
 					mpc_status_save(&my_mpc, mpc_st);
 			#endif  /* TEST_PARTIAL_OPTIMIZATION */
@@ -393,10 +393,10 @@ int main(int argc, char *argv[])
 					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 			#endif /* PRINT_LOG */
 		#endif /* CLIENT_SOLVER */
-		print_mark("SERVER: sendto - start");		
+		print_mark("SERVER: @sendto# - start");		
 		sendto(listenfd, buf_out, size_out, 0, 
 		    (struct sockaddr*)&cliaddr, sizeof(cliaddr));
-		print_mark("SERVER: sendto - end");
+		print_mark("SERVER: @sendto# - end");
 	}
 
 	/* Free all */
