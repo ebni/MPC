@@ -7,6 +7,7 @@ if len(sys.argv) < 2:
 
 data_file = sys.argv[1]
 tempi = {}
+executions = {}
 i = 0
 start = 0
 end = 0
@@ -18,7 +19,7 @@ with open(data_file) as f1:
         #print(line)
         line = line.strip()
         var = Decimal(line[(line.index(']') + 1) : line.index(':')])
-
+        nome_funzione = line[(line.index('@') + 1) : line.index('#')]
         if i % 2 == 0:
             start = var
         else:
@@ -28,16 +29,22 @@ with open(data_file) as f1:
                 tempi[nome_funzione] = 0
 
             tempi[nome_funzione] = tempi[nome_funzione] + (end - start)
+            if nome_funzione not in executions:
+                executions[nome_funzione] = 1
+            else:
+                executions[nome_funzione] = executions[nome_funzione] + 1
+
         i = i + 1
+
 
 if len(sys.argv) > 2:
     file = sys.argv[2]
     with open(file, 'a') as f2:
         for key, value in tempi.items():
-            print(key, ' : ', value, file = f2)
+            print(key, ' : ', value, ' --> ', executions[key], file = f2)
 
 else:
     for key, value in tempi.items():
-        print(key, ' : ', value)
+        print(key, ' : ', value, ' --> ', executions[key])
 
 

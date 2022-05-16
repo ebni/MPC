@@ -101,9 +101,21 @@ record_client:
 	sudo trace-cmd record -e sched_switch -F ./mpc_ctrl test.json
 
 report_server:
-	trace-cmd report -t | grep SERVER > report/trace_server.txt
+	trace-cmd report -t | grep SERVER > report/trace_server.txt;
+	python3 report/filtro3.py report/trace_server.txt report/trace_server_sum.txt
 
 report_client:
-	trace-cmd report -t | grep CLIENT  > report/trace_client.txt
+	trace-cmd report -t | grep CLIENT  > report/trace_client.txt;
+	python3 report/filtro3.py report/trace_client.txt report/trace_client_sum.txt
 
 report: report_server report_client
+
+run_server_trace:
+	gnome-terminal --tab -- bash -c "make record_server; exec bash -i";
+	gnome-terminal --tab -- bash -c "sudo ./mpc_ctrl test.json; exec bash -i";
+	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
+
+run_client_trace:
+	gnome-terminal --tab -- bash -c "sudo ./mpc_server test.json; exec bash -i";
+	gnome-terminal --tab -- bash -c "make record_client; exec bash -i";
+	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
