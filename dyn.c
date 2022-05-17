@@ -187,10 +187,10 @@ static void dyn_init_power_AB(dyn_plant * p)
  * Initialize a discrete-time system by reading from the JSON
  * struct. The continuous part is set to null
  */
-void dyn_init_discrete(dyn_plant * p, struct json_object * in)
+void dyn_init_discrete(dyn_plant * p, json_object * in)
 {
 	size_t i;
-	struct json_object *tmp, *elem;
+	json_object *tmp, *elem;
 
 	/* Ignore eigensystems */
 	p->has_eig = 0; 
@@ -405,9 +405,8 @@ void dyn_plant_dynamics(const dyn_plant * p,
 			gsl_vector_set_zero(x_next);
 
 			/* No control law, no time */
-			if (t->time != NULL) {
+			if (t->time != NULL)
 				gsl_vector_set(t->time, i, 0.0);
-			}
 		} else {
 			/* Getting time of simplex */
 			clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);

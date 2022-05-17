@@ -123,7 +123,7 @@ void dyn_discretize(dyn_plant * p, double tau, size_t H);
  * @brief Initialize a discrete-time system by reading from the JSON struct.
  * 
  * @param p  dyn_plant*  plant
- * @param in struct json_object* a json object containing info read from file for initialization 
+ * @param in json_object* a json object containing info read from file for initialization 
  * @note the JSON structure is supposed to have the following fields initialized:
  *       "num_states", number of states of the system
  *       "num_inputs", number of inputs of the system
@@ -132,7 +132,7 @@ void dyn_discretize(dyn_plant * p, double tau, size_t H);
  *       "Bd", matrix B of the discrete-time dynamics
  *        and the continuous part is set to null
  */
-void dyn_init_discrete(dyn_plant * p, struct json_object * in);
+void dyn_init_discrete(dyn_plant * p, json_object * in);
 
 
 /*

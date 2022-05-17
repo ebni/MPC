@@ -102,10 +102,10 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id);
  * @brief  Initializing the model with JSON filr 
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @return int 0 if no error 
  */
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
+int model_mpc_startup(mpc_glpk * mpc, json_object * in);
 
 /*
  * Signal handler. This process will terminate only on Ctrl-C. It will
@@ -141,7 +141,7 @@ void print_mark(const char *msg);
 
 
 int main(int argc, char * argv[]) {
-	struct shared_data * data;
+	shared_data * data;
 	double * shared_state;
 	double * shared_input;
 	int model_fd;
@@ -149,8 +149,8 @@ int main(int argc, char * argv[]) {
 	ssize_t size;
 	size_t i;
 
-	struct json_object *model_json;
-	struct json_tokener * tok;
+	json_object *model_json;
+	json_tokener* tok;
 
 	struct sigaction sa;
 
@@ -228,7 +228,7 @@ int main(int argc, char * argv[]) {
 		PRINT_ERROR("Unable to create shared memory. Maybe key in use (try ipcs)");
 		exit(EXIT_FAILURE);
 	}
-	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	data = (shared_data *)shmat(shm_id, NULL, 0);
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+my_mpc.model->n;
 	bzero(data, sizeof(*data)+
@@ -400,7 +400,7 @@ int main(int argc, char * argv[]) {
 }
 
 	
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
+int model_mpc_startup(mpc_glpk * mpc, json_object * in)
 {
 	/* Cleanup the MPC struct */
 	bzero(mpc,sizeof(*mpc));

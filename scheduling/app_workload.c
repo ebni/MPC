@@ -33,16 +33,16 @@
 #define PRINT_ERROR(x) {fprintf(stderr, "%s:%d errno=%i, %s\n",	\
 				__FILE__, __LINE__, errno, (x));}
 
-struct job_record {
+typedef struct job_record {
 	struct timespec job_release;   /* job release */
 	struct timespec job_start;     /* job start */
 	struct timespec job_finish;    /* job start */
-};
+} job_record;
 
 
 /* GLOBAL VARIABLES (used in handler) */
 int mem_recs_id;
-struct job_record * recs_all;
+job_record * recs_all;
 
 
 /*
@@ -70,7 +70,7 @@ void process_request(void);
  */
 int main(int argc, char * argv[]) {
 	struct sigaction sa;
-	struct worker_data * reqs_info;
+	worker_data * reqs_info;
 	FILE * logfile, *csv_infile;
 	size_t i,j,id, job_num=0;
 	pid_t child_pid, releaser_pid;
@@ -100,16 +100,16 @@ int main(int argc, char * argv[]) {
 
 	/* Shared memory for recording the progress of the workload */
 	mem_recs_id = shmget(APP_SHM_KEY,
-			     sizeof(struct worker_data)+
-			     sizeof(struct job_record)*job_num,
+			     sizeof(worker_data)+
+			     sizeof(job_record)*job_num,
 			     APP_SHM_FLAGS | IPC_CREAT | IPC_EXCL);
 	if (mem_recs_id == -1) {
 		PRINT_ERROR("Unable to create shared memory");
 		exit(EXIT_FAILURE);
 	}
-	reqs_info = (struct worker_data *)shmat(mem_recs_id, NULL, 0);
+	reqs_info = (worker_data *)shmat(mem_recs_id, NULL, 0);
 	bzero(reqs_info, sizeof(*reqs_info));
-	recs_all  = (struct job_record *)(reqs_info+1);
+	recs_all  = (job_record *)(reqs_info+1);
 	bzero(recs_all, sizeof(*recs_all)*job_num);
 	/* no pending requests */
 	if (sem_init(&reqs_info->pending, 1, 0) == -1) {
@@ -144,9 +144,9 @@ int main(int argc, char * argv[]) {
 			
 			/* get pointers */
 #if 0 /* inherited from parent ? */			
-			recs_all  = (struct job_record *)shmat(mem_recs_id,
+			recs_all  = (job_record *)shmat(mem_recs_id,
 							       NULL, 0);
-			reqs_info = (struct worker_data *)(recs_all+job_num);
+			reqs_info = (worker_data *)(recs_all+job_num);
 #endif
 			while(1) {
 				/* Wait for new requests */
@@ -194,9 +194,9 @@ int main(int argc, char * argv[]) {
 		
 #if 0 /* inherited from parent ? */			
 		/* get pointers */
-		recs_all  = (struct job_record *)shmat(mem_recs_id,
+		recs_all  = (job_record *)shmat(mem_recs_id,
 						       NULL, 0);
-		reqs_info = (struct worker_data *)(recs_all+job_num);
+		reqs_info = (worker_data *)(recs_all+job_num);
 #endif
 		
 		for (i=0, id=0; i<req_len; i++) {

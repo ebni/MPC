@@ -19,7 +19,7 @@
 
 int main() {	
 	int shm_id;
-	struct shared_data * data;
+	shared_data * data;
 	struct timespec tic, toc;
 	size_t i;
 	double time_mpc=0;
@@ -38,7 +38,7 @@ int main() {
 		PRINT_ERROR("shmget failed");
 		return -1;
 	}
-	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	data = (shared_data *)shmat(shm_id, NULL, 0);
 	
 	/* Create a pointer to the real data in the state vector  */
 	memcpy(data->state, state_test, sizeof(state_test[0])*MPC_STATE_NUM);

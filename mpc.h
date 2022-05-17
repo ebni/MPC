@@ -76,12 +76,12 @@ typedef struct {
  * pointed  by  mpc.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note mpc model must be initialized 
  * @note The json object must have the field "len_ctrl",  
  * 		 number of steps in which a new input is applied initialized
  */
-void mpc_input_addvar(mpc_glpk * mpc, struct json_object * in);
+void mpc_input_addvar(mpc_glpk * mpc, json_object * in);
 
 /*
  * Set the bound on the input variables. A successful invocation needs:
@@ -94,12 +94,12 @@ void mpc_input_addvar(mpc_glpk * mpc, struct json_object * in);
  * @brief Set the bound on the input variables.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note GLPK control variables of mpc->op be initialized
  * @note The JSON object in must have the "input_bounds" field,
  * 	     array of lower/upper bound of input, initialized
  */
-void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in);
+void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in);
 
 /*
  * Add constraints on maximum admissible rate of inputs. A successful
@@ -113,12 +113,12 @@ void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in);
  * @brief Add constraints on maximum admissible rate of inputs.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note GLPK control variables of mpc->op be initialized
  * @note The JSON object in must have the "input_rate_max" field,
  * 	     array of max input rates, initialized 
  */
-void mpc_input_set_delta(mpc_glpk * mpc, struct json_object * in);
+void mpc_input_set_delta(mpc_glpk * mpc, json_object * in);
 
 /*
  * Add  constraints  on  maximum/minimum  first  input  based  on  max
@@ -159,13 +159,13 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0);
  * the state from X(1) to X(H).
  * 
  * @param mpc mpc_glpk* 			The representation of the MPC problem
- * @param in  struct json_object* 	json object containing initialization data read from file
+ * @param in  json_object* 	json object containing initialization data read from file
  * @note  GLPK control variables of mpc->op must be initialized
  * @note  The JSON object in have the "state_weight" field, 
  * 		  array of weight of each element of the state to
  *        compute the state infty-norm, initialized
  */
-void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in);
+void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in);
 
 /**
  * @brief //TODO finish write brief
@@ -185,9 +185,9 @@ void mpc_input_norm_addvar(mpc_glpk * mpc);
  * @brief Set the bound on the state variables.
  * 
  * @param mpc mpc_glpk*				The representation of the MPC problem
- * @param in  struct json_object* 	JSON object containing initialization data read from file
+ * @param in  json_object* 	JSON object containing initialization data read from file
  */
-void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in);
+void mpc_state_set_bnds(mpc_glpk * mpc, json_object * in);
 
 /*
  * Set the goal of the MPC optimization. A successful invocation needs:
@@ -210,7 +210,7 @@ void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in);
  * @brief Set the goal of the MPC optimization.
  * 
  * @param mpc mpc_glpk*				The representation of the MPC problem
- * @param in  struct json_object* 	JSON object containing initialization data read from file
+ * @param in  json_object* 	JSON object containing initialization data read from file
  * @note  The JSON object in have the "cost_model" field,
  * 		  an object describing the model of cost to be
  *        used, initialized. Such an object must have the string filed "type"
@@ -225,7 +225,7 @@ void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in);
  *     	  state norms  over time. The  field "coef"  is the base  of such
  *     	  exponential.
  */
-void mpc_goal_set(mpc_glpk * mpc, struct json_object * in);
+void mpc_goal_set(mpc_glpk * mpc, json_object * in);
 
 
 /*

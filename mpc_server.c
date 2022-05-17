@@ -58,12 +58,11 @@ void print_mark(const char *msg)
 	
 	marker_fd = open(MARKER_FILE, O_WRONLY);
 	if (marker_fd == -1) {
-		fprintf(stderr, "Error\n");
+		fprintf(stderr, "Error opening trace_marker file\n");
+		return;
 	}
-	
-		snprintf(s,BUF_LEN,"%s\n",msg);
-		write(marker_fd, s, BUF_LEN);
-	
+	snprintf(s,BUF_LEN,"%s\n",msg);
+	write(marker_fd, s, BUF_LEN);
 	if(close(marker_fd)==-1)
 		exit(EXIT_FAILURE);
 }
@@ -154,10 +153,10 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param);
  * @brief Initialize the model with JSON file
  * 
  * @param  mpc mpc_glpk*			The representation of the MPC problem
- * @param  in  struct json_object*	JSON object used to contain input read from file
+ * @param  in  json_object*	JSON object used to contain input read from file
  * @return int 						0 if it terminates correctly
  */
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
+int model_mpc_startup(mpc_glpk * mpc, json_object * in);
 void term_handler(int signum);
 
 void term_handler(int signum)
@@ -174,6 +173,33 @@ void term_handler(int signum)
 	}
 }
 
+//FIXME: add documentation
+json_object* init_model_json(const char *json_file);
+
+json_object* init_model_json(const char *json_file)
+{
+	json_object *model_json;
+	json_tokener *tok;
+	ssize_t size;
+	int model_fd;
+	char * buffer;
+
+	if (json_file == NULL || (model_fd = open(json_file, O_RDONLY)) == -1) {
+		PRINT_ERROR("Missing/wrong file");
+		exit(1);
+	}
+	size = lseek(model_fd, 0, SEEK_END);
+	lseek(model_fd, 0, SEEK_SET);
+	buffer = malloc((size_t)size);
+	size = read(model_fd, buffer, (size_t)size);
+	close(model_fd);
+	tok = json_tokener_new();
+	model_json = json_tokener_parse_ex(tok, buffer, (int)size);
+	free(buffer);
+	return model_json;
+}
+
+
 /*
  * This is code should be invoked as:
  *
@@ -189,39 +215,31 @@ int main(int argc, char *argv[])
 	mpc_glpk my_mpc;
 	struct sigaction sa;
 	#ifdef CLIENT_MATLAB
-		gsl_vector *x, *u;	
-		size_t i;
+	gsl_vector *x, *u;	
+	size_t i;
 	#endif
 	#ifdef CLIENT_SOLVER
-		mpc_status * mpc_st;
+	mpc_status * mpc_st;
 	#endif
 	#ifdef TEST_PARTIAL_OPTIMIZATION
-		struct timespec tic, toc;
-		double time;
-		int num;
+	struct timespec tic, toc;
+	double time;
+	int num;
 	#endif
-	int model_fd;
-	char * buffer;
-	ssize_t size;
+	//int model_fd;
+	//char * buffer;
+	//ssize_t size;
 	size_t k, size_in, size_out;
 	uint16_t port;
 	uint64_t * buf_in, *buf_out; /* as many bytes as double */
-
-	struct json_object *model_json;
-	struct json_tokener * tok;
-
+	json_object *model_json;
+	//json_tokener * tok;
 	int listenfd;
 	socklen_t len;
 	struct sockaddr_in servaddr, cliaddr;
 	
 	if (argc <= 1) {
 		PRINT_ERROR("Too few arguments. 1 needed: <JSON model>");
-		return -1;
-	}
-
-	/* Opening JSON model of the plant */
-	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
-		PRINT_ERROR("Missing/wrong file");
 		return -1;
 	}
 
@@ -233,19 +251,27 @@ int main(int argc, char *argv[])
 	sigaction(SIGPIPE, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGSEGV, &sa, NULL);
-
-	/* Getting the size of the file */
-	size = lseek(model_fd, 0, SEEK_END);
-	lseek(model_fd, 0, SEEK_SET);
 	
+	model_json = init_model_json(argv[1]);
+	
+	/* Opening JSON model of the plant */
+	/*
+	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
+		PRINT_ERROR("Missing/wrong file");
+		return -1;
+	}*/
+	/* Getting the size of the file */
+	/*size = lseek(model_fd, 0, SEEK_END);
+	lseek(model_fd, 0, SEEK_SET);
+	*/
 	/* Allocate the buffer and store data */
-	buffer = malloc((size_t)size);
+	/*buffer = malloc((size_t)size);
 	size = read(model_fd, buffer, (size_t)size);
 	close(model_fd);
 	tok = json_tokener_new();
 	model_json = json_tokener_parse_ex(tok, buffer, (int)size);
 	free(buffer);
-
+	*/
 	
 	//TODO: place to check how use U
 	
@@ -255,22 +281,21 @@ int main(int argc, char *argv[])
 	print_mark("SERVER: @model_mpc_startup# - end");
 	/* Opening socket and all server stuff */
 	#ifdef CLIENT_MATLAB
-		port = PORT_MATLAB;
+	port = PORT_MATLAB;
 	#else
-		port = MPC_SOLVER_PORT;
+	port = MPC_SOLVER_PORT;
 	#endif
 	listenfd = socket(AF_INET, SOCK_DGRAM, 0);         
 	bzero(&servaddr, sizeof(servaddr)); 
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
 	servaddr.sin_port = htons(port); 
 	servaddr.sin_family = AF_INET;  
-	if (bind(listenfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1)
+	if (bind(listenfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) == -1)
 		PRINT_ERROR("issue in bind");
 	printf("MPC server up and running: listening behind port %d\n", port);
 
 	/* Pin server to a CPU different than client */
-	sched_set_prio_affinity(sched_get_priority_max(SCHED_FIFO),
-				(MPC_CPU_ID-1)%2);
+	sched_set_prio_affinity(sched_get_priority_max(SCHED_FIFO), (MPC_CPU_ID-1)%2);
 	/*
 	CPU_ZERO(&my_mask);
 	CPU_SET(0, &my_mask);
@@ -436,7 +461,7 @@ void ctrl_by_mpc(const gsl_vector * x, gsl_vector * u, void *param)
 	}
 }
 
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
+int model_mpc_startup(mpc_glpk * mpc, json_object * in)
 {
 	/* Cleanup the MPC struct */
 	bzero(mpc,sizeof(*mpc));

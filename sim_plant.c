@@ -71,7 +71,7 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param);
 /*
  * Initializing the model with JSON file
  */
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
+int model_mpc_startup(mpc_glpk * mpc, json_object * in);
 
 /*
  * GLOBAL VARIABLES
@@ -82,7 +82,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
 mpc_status * mpc_st;
 int sockfd;
 gsl_vector *x_k;
-struct shared_data * data;
+shared_data * data;
 double * shared_state;
 double * shared_input;
 
@@ -103,8 +103,8 @@ int main(int argc, char *argv[]) {
 	ssize_t size;
 	size_t steps;
 
-	struct json_object *model_json;
-	struct json_tokener * tok;
+	json_object *model_json;
+	json_tokener* tok;
 
 	if (argc <= 2) {
 		PRINT_ERROR("Too few arguments. 2 needed: <JSON model> <number of steps>");
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
 		PRINT_ERROR("shmget failed");
 	}
 	/* Setting up pointers to state/input arrays */
-	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	data = (shared_data *)shmat(shm_id, NULL, 0);
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+data->state_num;
 
@@ -212,11 +212,11 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param)
 	gsl_vector_set(t->time, k, cur_time);
 }
 
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
+int model_mpc_startup(mpc_glpk * mpc, json_object * in)
 {
 #ifdef INIT_X0_JSON
 	size_t i;
-	struct json_object *tmp_elem, *elem;
+	json_object *tmp_elem, *elem;
 #endif
 
 	/* Cleanup the MPC struct */

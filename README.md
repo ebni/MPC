@@ -28,7 +28,7 @@ The communication between any application and the MPC controller happens through
 
 * A `struct shared_data` declared in `mpc_interface.h`. The struct is declared as follows
 ```
-struct shared_data {
+shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
 	size_t state_num;            /* number of states */
 	size_t input_num;            /* number of inputs */

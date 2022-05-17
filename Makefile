@@ -41,7 +41,7 @@ matlab: mpc_matlab.mexa64
 
 .PHONY: clean
 clean:
-	rm -rf *.o *~ mpc mpc_server mpc_client
+	rm -rf -v *.o *~ mpc mpc_server mpc_ctrl mpc_matlab.mexa64
 
 .PHONY: run_server
 run_server:
@@ -111,11 +111,11 @@ report_client:
 report: report_server report_client
 
 run_server_trace:
-	gnome-terminal --tab -- bash -c "make record_server; exec bash -i";
+	gnome-terminal --tab -- bash -c "make record_server; make report_server; exec bash -i";
 	gnome-terminal --tab -- bash -c "sudo ./mpc_ctrl test.json; exec bash -i";
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"
 
 run_client_trace:
 	gnome-terminal --tab -- bash -c "sudo ./mpc_server test.json; exec bash -i";
-	gnome-terminal --tab -- bash -c "make record_client; exec bash -i";
+	gnome-terminal --tab -- bash -c "make record_client; make report_client; exec bash -i";
 	gnome-terminal --tab -- bash -c "cd ../matlab_sim; matlab -softwareopengl; exec bash -i"

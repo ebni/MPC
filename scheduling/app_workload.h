@@ -11,9 +11,9 @@
 
 #include <semaphore.h>
 
-struct worker_data {
+typedef struct worker_data {
 	sem_t pending;
 	sem_t mutex_next_req;
 	unsigned long next_req;
-	/* An array of JOB_NUM struct job_record and then */
-};
+	/* An array of JOB_NUM job_record and then */
+} worker_data;

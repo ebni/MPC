@@ -43,8 +43,8 @@
 
 /* GLOBAL VARIABLES (used in handler) */
 int app_shmid, mpc_shmid;
-struct worker_data * app_data;
-struct shared_data * mpc_data;
+worker_data * app_data;
+shared_data * mpc_data;
 FILE * logrm;
 
 /*
@@ -74,7 +74,7 @@ int main(int argc, char * argv[]) {
 		PRINT_ERROR("issues in shmget");
 		exit(-1);
 	}
-	app_data = (struct worker_data *)shmat(app_shmid, NULL, 0);
+	app_data = (worker_data *)shmat(app_shmid, NULL, 0);
 	if (app_data == (void *)-1) {
 		PRINT_ERROR("issues in shmat");
 		exit(-1);
@@ -101,7 +101,7 @@ int main(int argc, char * argv[]) {
 	if (mpc_shmid == -1) {
 		PRINT_ERROR("shmget of MPC failed");
 	}
-	mpc_data = (struct shared_data *)shmat(mpc_shmid, NULL, 0);
+	mpc_data = (shared_data *)shmat(mpc_shmid, NULL, 0);
 	MPC_OFFLOAD_DISABLE(mpc_data);
 
 	/* Let's go */

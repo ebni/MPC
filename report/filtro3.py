@@ -43,6 +43,7 @@ if len(sys.argv) > 2:
         for key, value in tempi.items():
             print(key, ' : ', value, ' --> ', executions[key], file = f2)
 
+        print('___________________________________________', file = f2) 
 else:
     for key, value in tempi.items():
         print(key, ' : ', value, ' --> ', executions[key])

@@ -50,17 +50,17 @@
  * pointed  by  mpc.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note mpc model must be initialized 
  * @note The json object must have the field "len_ctrl",  
  * 		 number of steps in which a new input is applied initialized
  */
-void mpc_input_addvar(mpc_glpk * mpc, struct json_object * in)
+void mpc_input_addvar(mpc_glpk * mpc, json_object * in)
 {
 	char s[200];
 	size_t i, j;
 	int id;
-	struct json_object *tmp;
+	json_object *tmp;
 	
 	/* Get the length of control horizon */
 	if (!json_object_object_get_ex(in, "len_ctrl", &tmp)) {
@@ -99,10 +99,9 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
 	int ind[3] = {DONTCARE, DONTCARE, DONTCARE};
 	double val[3] = {DONTCARE, 1.0, 1.0};
 	
-	if (mpc->v_absU > 0) {
-		/* absolute values of inputs already set */
+	/* absolute values of inputs already set */
+	if (mpc->v_absU > 0)
 		return;
-	}
 
 	/* looping over all input vars */
 	for (i=0; i < mpc->h_ctrl+1; i++) {
@@ -116,15 +115,13 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
 				mpc->v_absU = v_cur;
 				mpc->id_absU = c_cur;
 			}
-
 			/* Giving a name to variables */
-			if (i < mpc->h_ctrl) {
+			if (i < mpc->h_ctrl)
 				sprintf(s,"|U%i(%02i)|",(int)j,(int)i);
-			} else {
+			else
 				sprintf(s,"|U%i(XX)|",(int)j);
-			}
+			
 			glp_set_col_name(mpc->op, (int)v_cur, s);
-
 			/* Setting U_j(i) <= |U_j(i)|*/
 			sprintf(s,"|U%i(%02d)|_UP", (int)j, (int)i);
 			glp_set_row_name(mpc->op, c_cur, s);
@@ -134,7 +131,6 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
 			val[2] = -1.0;
 			glp_set_mat_row(mpc->op, c_cur, 2, ind, val);
 			glp_set_row_bnds(mpc->op, c_cur, GLP_UP, DONTCARE, 0);
-
 			/* Setting U_j(i) >= -|U_j(i)|*/
 			sprintf(s,"|U%i(%02d)|_LO", (int)j, (int)i);
 			glp_set_row_name(mpc->op, c_cur+1, s);
@@ -156,16 +152,16 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
  * @brief Set the bound on the input variables.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note GLPK control variables of mpc->op be initialized
  * @note The JSON object in must have the "input_bounds" field,
  * 	     array of lower/upper bound of input, initialized
  */
-void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
+void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
 {
 	size_t i,j;
 	int id;
-	struct json_object * bnds, *bnds1, *elem;
+	json_object * bnds, *bnds1, *elem;
 	char *bnds_has;
 	double *bnds_lo, *bnds_up;
 	
@@ -182,6 +178,7 @@ void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
 	bnds_lo  = calloc(mpc->model->m, sizeof(*bnds_lo));
 	bnds_up  = calloc(mpc->model->m, sizeof(*bnds_up));
 
+	//TODO: put input checking in a function
 	/* Parsing input_bounds from JSON file*/
 	for (i=0; i < mpc->model->m; i++) {
 		if ((bnds1 = json_object_array_get_idx(bnds, (int)i)) == NULL) {
@@ -212,19 +209,15 @@ void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
 		for (j=0; j < mpc->model->m; j++, id++) {
 			switch (bnds_has[j]) {
 			case (HAS_NONE):
-				glp_set_col_bnds(mpc->op, id,
-						 GLP_FR,DONTCARE,DONTCARE);
+				glp_set_col_bnds(mpc->op, id, GLP_FR,DONTCARE,DONTCARE);
 				break;
 			case (HAS_LOWER):
-				glp_set_col_bnds(mpc->op, id,
-						 GLP_LO,bnds_lo[j],DONTCARE);
+				glp_set_col_bnds(mpc->op, id, GLP_LO,bnds_lo[j],DONTCARE);
 				break;
 			case (HAS_UPPER):
-				glp_set_col_bnds(mpc->op, id,
-						 GLP_UP,DONTCARE,bnds_up[j]);
+				glp_set_col_bnds(mpc->op, id, GLP_UP,DONTCARE,bnds_up[j]);
 				break;
-			case (HAS_LOWER | HAS_UPPER):
-				glp_set_col_bnds(mpc->op, id,
+			case (HAS_LOWER | HAS_UPPER): glp_set_col_bnds(mpc->op, id,
 						 GLP_DB,bnds_lo[j],bnds_up[j]);
 				break;
 			}
@@ -248,18 +241,18 @@ void mpc_input_set_bnds(mpc_glpk * mpc, struct json_object * in)
  * @brief Add constraints on maximum admissible rate of inputs.
  * 
  * @param mpc mpc_glpk* contain the representation of the MPC problem
- * @param in  struct json_object* json object containing initialization data read from file
+ * @param in  json_object* json object containing initialization data read from file
  * @note GLPK control variables of mpc->op be initialized
  * @note The JSON object in must have the "input_rate_max" field,
  * 	     array of max input rates, initialized 
  */
-void mpc_input_set_delta(mpc_glpk * mpc, struct json_object * in)
+void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 {
 	char s[200];
 	double * val, *bnd;
 	size_t i, j;
 	int id, *ind;
-	struct json_object * vec_rates, *elem;
+	json_object * vec_rates, *elem;
 	
 	/* Get the input bounds */
 	if (!json_object_object_get_ex(in, "input_rate_max", &vec_rates)) {
@@ -398,13 +391,13 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
  * the state from X(1) to X(H).
  * 
  * @param mpc mpc_glpk* 			The representation of the MPC problem
- * @param in  struct json_object* 	json object containing initialization data read from file
+ * @param in  json_object* 	json object containing initialization data read from file
  * @note  GLPK control variables of mpc->op must be initialized
  * @note  The JSON object in have the "state_weight" field, 
  * 		  array of weight of each element of the state to
  *        compute the state infty-norm, initialized
  */
-void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
+void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 {
 	size_t i, j, k, n, m, H, p;
 	int *ind, id;
@@ -413,7 +406,7 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
 	gsl_matrix **L; /* linear op from U(0)...U(P) to X(i) */
 	gsl_matrix *tmp;
 	char s[200];
-	struct json_object * vec_w, *elem;
+	json_object * vec_w, *elem;
 	
 	/* Get the weight of each state component */
 	if (!json_object_object_get_ex(in, "state_weight", &vec_w)) {
@@ -580,12 +573,12 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, struct json_object * in)
  * @brief Set the bound on the state variables.
  * 
  * @param mpc mpc_glpk*				The representation of the MPC problem
- * @param in  struct json_object* 	JSON object containing initialization data read from file
+ * @param in  json_object* 	JSON object containing initialization data read from file
  */
-void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in)
+void mpc_state_set_bnds(mpc_glpk * mpc, json_object * in)
 {
 	size_t i,j,k,num_vars;
-	struct json_object * bnds, *bnds1, *elem;
+	json_object * bnds, *bnds1, *elem;
 	char s[100];
 	int * ind, id_norm, id, len, first;
 	double * val;
@@ -618,13 +611,10 @@ void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in)
 		}
 		/* get lower bound from JSON and set in MPC struct */
 		elem = json_object_array_get_idx(bnds1, 0);
-		gsl_vector_set(mpc->x_lo, i,
-			       json_object_get_double(elem));
-		
+		gsl_vector_set(mpc->x_lo, i, json_object_get_double(elem));
 		/* get upper bound from JSON and set in MPC struct */
 		elem = json_object_array_get_idx(bnds1, 1);
-		gsl_vector_set(mpc->x_up, i,
-			       json_object_get_double(elem));
+		gsl_vector_set(mpc->x_up, i, json_object_get_double(elem));
 	}
 	
 	/* Setting the bounds in the GLPK problem */
@@ -652,10 +642,8 @@ void mpc_state_set_bnds(mpc_glpk * mpc, struct json_object * in)
 			if (j == (size_t)len) {
 				/* Z var is last: do nothing */
 			} else {
-				memmove(ind+j, ind+j+1,
-					sizeof(*ind)*((size_t)len-j));
-				memmove(val+j, val+j+1,
-					sizeof(*val)*((size_t)len-j));
+				memmove(ind+j, ind+j+1, sizeof(*ind)*((size_t)len-j));
+				memmove(val+j, val+j+1, sizeof(*val)*((size_t)len-j));
 			}
 			len--;
 
@@ -713,22 +701,16 @@ void mpc_update_x0(mpc_glpk * mpc) {
 			
 			/* Updating RHS of state norm constraints */
 			if (gsl_vector_get(mpc->w,i) > 0) {
-				glp_set_row_bnds(mpc->op, id_normZ++,
-						 GLP_UP, DONTCARE, -x_ik);
-				glp_set_row_bnds(mpc->op, id_normZ++,
-						 GLP_LO, -x_ik, DONTCARE);
+				glp_set_row_bnds(mpc->op, id_normZ++, GLP_UP, DONTCARE, -x_ik);
+				glp_set_row_bnds(mpc->op, id_normZ++, GLP_LO, -x_ik, DONTCARE);
 			} else {
 				/* no weight to this component of the state */
 				#if 1 /* setting a very large upper bound */
-					glp_set_row_bnds(mpc->op, id_normZ++,
-							GLP_UP, DONTCARE, 1e10);
-					glp_set_row_bnds(mpc->op, id_normZ++,
-							GLP_UP, DONTCARE, 1e10);
+				glp_set_row_bnds(mpc->op, id_normZ++, GLP_UP, DONTCARE, 1e10);
+				glp_set_row_bnds(mpc->op, id_normZ++, GLP_UP, DONTCARE, 1e10);
 				#else /* setting infinity as upper bound */
-								glp_set_row_bnds(mpc->op, id++,
-										GLP_FR, DONTCARE, DONTCARE);
-								glp_set_row_bnds(mpc->op, id++,
-										GLP_FR, DONTCARE, DONTCARE);
+				glp_set_row_bnds(mpc->op, id++, GLP_FR, DONTCARE, DONTCARE);
+				glp_set_row_bnds(mpc->op, id++,	GLP_FR, DONTCARE, DONTCARE);
 				#endif
 			}
 
@@ -737,16 +719,16 @@ void mpc_update_x0(mpc_glpk * mpc) {
 			up = gsl_vector_get(mpc->x_up, i);
 			if (isfinite(lo) && isfinite(up))
 				glp_set_row_bnds(mpc->op, id_Xbnds++, GLP_DB,
-						 lo-x_ik, up-x_ik);
+						lo - x_ik, up - x_ik);
 			else if (isfinite(lo))
 				glp_set_row_bnds(mpc->op, id_Xbnds++, GLP_LO,
-						 lo-x_ik, DONTCARE);
+						lo - x_ik, DONTCARE);
 			else if (isfinite(up))
 				glp_set_row_bnds(mpc->op, id_Xbnds++, GLP_UP,
-						 DONTCARE, up-x_ik);
+						DONTCARE, up - x_ik);
 			else /* no bounds */
 				glp_set_row_bnds(mpc->op, id_Xbnds++, GLP_FR,
-						 DONTCARE, DONTCARE);
+						DONTCARE, DONTCARE);
 		}
 	}
 	gsl_vector_free(x_k);
@@ -777,7 +759,7 @@ void mpc_update_x0(mpc_glpk * mpc) {
  * @brief Set the goal of the MPC optimization.
  * 
  * @param mpc mpc_glpk*				The representation of the MPC problem
- * @param in  struct json_object* 	JSON object containing initialization data read from file
+ * @param in  json_object* 	JSON object containing initialization data read from file
  * @note  The JSON object in have the "cost_model" field,
  * 		  an object describing the model of cost to be
  *        used, initialized. Such an object must have the string filed "type"
@@ -792,9 +774,9 @@ void mpc_update_x0(mpc_glpk * mpc) {
  *     	  state norms  over time. The  field "coef"  is the base  of such
  *     	  exponential.
  */
-void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
+void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 {
-	struct json_object * cost, *tmp;
+	json_object * cost, *tmp;
 	const char * type_str;
 	
 	/* Get the cost model of the MPC */
@@ -817,9 +799,8 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 		size_t j;
 		double coef, cur;
 
-		if (mpc->v_Ninf_X <= 0) {
+		if (mpc->v_Ninf_X <= 0)
 			mpc_state_norm_addvar(mpc, in);
-		}
 		
 		if (!json_object_object_get_ex(cost, "coef", &tmp)) {
 			PRINT_ERROR("missing coef in cost_model in JSON");
@@ -832,7 +813,7 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 		glp_set_obj_dir(mpc->op, GLP_MIN);
 		cur = 1;
 		for (j = 0; j < mpc->model->H; j++) {
-			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X+(int)j, cur);
+			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X + (int)j, cur);
 			cur *= coef;
 		}
 		return;
@@ -842,11 +823,10 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 	if (strcmp(type_str, "min_state_input_norms") == 0) {
 		size_t j, i;
 		double coef, cur;
-		struct json_object * vec_w, *elem;
+		json_object * vec_w, *elem;
 
-		if (mpc->v_absU <= 0) {
+		if (mpc->v_absU <= 0)
 			mpc_input_norm_addvar(mpc);
-		}
 
 		/* Cost of the state as in "min_steps_to_zero" */
 		if (!json_object_object_get_ex(cost, "coef", &tmp)) {
@@ -886,7 +866,7 @@ void mpc_goal_set(mpc_glpk * mpc, struct json_object * in)
 			}
 			/* looping over all input vars */
 			for (i=0; i < mpc->h_ctrl+1; i++) {
-				glp_set_obj_coef(mpc->op, mpc->v_absU+(int)((mpc->model->m)*i+j), cur);
+				glp_set_obj_coef(mpc->op, mpc->v_absU + (int)((mpc->model->m) * i + j), cur);
 			}
 		}
 		return;
@@ -945,12 +925,10 @@ void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size)
 
 	/* add two constraints (R, L) for any non-zero size */
 	for (i=0, constr_num = 0; i < mpc->model->n; i++) {
-		if (fabs(size[i]) > DOUBLE_SMALL) {
+		if (fabs(size[i]) > DOUBLE_SMALL)
 			constr_num += 2;
-		}
 	}
-	if (constr_num == 0) {
-		/* No need of constraints */
+	if (constr_num == 0) { /* No need of constraints */
 		mpc->id_obstacle = 0;
 		mpc->v_B = 0;
 		return;
@@ -960,11 +938,11 @@ void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size)
 	 * num_vars is the max number of variables with non-zero
 	 * coefficient in any constraint
 	 */
-	num_vars = GSL_MAX(num_vars, mpc->model->m*mpc->h_ctrl+1);
+	num_vars = GSL_MAX(num_vars, mpc->model->m * mpc->h_ctrl + 1);
 	num_vars = GSL_MAX(num_vars, constr_num);
 	/* Allocating for num_vars+1 because GLPK counts indices in array from 1 */
-	ind = calloc(num_vars+1, sizeof(int));
-	val = calloc(num_vars+1, sizeof(double));
+	ind = calloc(num_vars + 1, sizeof(int));
+	val = calloc(num_vars + 1, sizeof(double));
 
 	/*
 	 * Getting coefficients from the norm constraints and set the
@@ -972,13 +950,12 @@ void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size)
 	 */
 	id_norm = mpc->id_norm;
 	/* Looping over all state variables from X(1) to X(H) */
-	for (i=1; i <= mpc->model->H; i++) {
+	for (i = 1; i <= mpc->model->H; i++) {
 		
 	  	/* Creating constr_num binary variables and constraint */
-		if (i==1) {
+		if (i == 1) {
 			/* first time */
-			mpc->v_B = v_B =
-				glp_add_cols(mpc->op, (int)constr_num);
+			mpc->v_B = v_B = glp_add_cols(mpc->op, (int)constr_num);
 			mpc->id_obstacle = glp_add_rows(mpc->op, 1);
 		} else {
 			glp_add_cols(mpc->op, (int)constr_num);
@@ -991,20 +968,18 @@ void mpc_state_obstacle_add(mpc_glpk * mpc, double *center, double *size)
 		 */
 		sprintf(s,"Ob(%02d)_one_true", (int)i);
 		glp_set_row_name(mpc->op, mpc->id_obstacle+(int)((i-1)*(constr_num+1)), s);
-		for (k=0; k < constr_num; k++) {
-			ind[k+1] = mpc->v_B+(int)(constr_num*(i-1)+k);
-			val[k+1] = 1.0;
+		for (k = 0; k < constr_num; k++) {
+			ind[k + 1] = mpc->v_B + (int)(constr_num * (i - 1) + k);
+			val[k + 1] = 1.0;
 		}
 		glp_set_mat_row(mpc->op, mpc->id_obstacle+(int)((i-1)*(constr_num+1)),
 				(int)constr_num, ind, val);
 		glp_set_row_bnds(mpc->op, mpc->id_obstacle+(int)((i-1)*(constr_num+1)),
-				 GLP_UP, DONTCARE,
-				 (double)constr_num-1+DOUBLE_SMALL);
+				GLP_UP, DONTCARE, (double)constr_num - 1 + DOUBLE_SMALL);
 			
 		/* Loop over components of X(i) */
-		for (k=0; k < mpc->model->n; k++) {
-			if (fabs(size[k]) <= DOUBLE_SMALL) {
-				/* no obstacle along this dimension */
+		for (k = 0; k < mpc->model->n; k++) {
+			if (fabs(size[k]) <= DOUBLE_SMALL) { /* no obstacle along this dimension */
 				id_norm += 2; /* skip next 2 */
 				continue;
 			}
@@ -1196,13 +1171,12 @@ mpc_status * mpc_status_alloc(const mpc_glpk * mpc)
 	m = mpc->model->m;
 	rows = glp_get_num_rows(mpc->op);
 	cols = glp_get_num_cols(mpc->op);
-	
-	tmp->size = n*sizeof(tmp->state[0])+m*sizeof(tmp->input[0])
+	tmp->size = n * sizeof(tmp->state[0]) + m * sizeof(tmp->input[0])
 		/* "+1" because indices in GLPK arrays starts from 1 */
-		+((size_t)rows+1)*sizeof(tmp->row_stat[0])
-		+((size_t)cols+1)*sizeof(tmp->col_stat[0])
-		+sizeof(tmp->steps_bdg[0])+sizeof(tmp->time_bdg[0])
-		+sizeof(tmp->prim_stat)+sizeof(tmp->dual_stat);
+		+ ((size_t)rows + 1) * sizeof(tmp->row_stat[0])
+		+ ((size_t)cols + 1) * sizeof(tmp->col_stat[0])
+		+ sizeof(tmp->steps_bdg[0]) + sizeof(tmp->time_bdg[0])
+		+ sizeof(tmp->prim_stat) + sizeof(tmp->dual_stat);
 	tmp->block = malloc(tmp->size);
 	bzero(tmp->block, tmp->size);
 	tmp->state = (double *)tmp->block;
@@ -1243,8 +1217,7 @@ void mpc_status_free(mpc_status * sol_st)
 void mpc_status_set_x0(mpc_glpk * mpc, const mpc_status * sol_st)
 {
 	/* update initial state */
-	memcpy(mpc->x0->data, sol_st->state,
-	       sizeof(*sol_st->state)*mpc->model->n);
+	memcpy(mpc->x0->data, sol_st->state, sizeof(*sol_st->state)*mpc->model->n);
 	mpc_update_x0(mpc);
 }
 
@@ -1341,13 +1314,12 @@ void mpc_status_fprintf(FILE *f,
 {
 	size_t i;
 	fprintf(f, "State\n");
-	for (i = 0; i < mpc->model->n; i++) {
+	for (i = 0; i < mpc->model->n; i++)
 		fprintf(f, "%f\t", sol_st->state[i]);
-	}
+
 	fprintf(f, "\nInput\n");
-	for (i = 0; i < mpc->model->m; i++) {
+	for (i = 0; i < mpc->model->m; i++)
 		fprintf(f, "%f\t", sol_st->input[i]);
-	}
 	#if 0  /* Let's omit the basic status for a while */
 		fprintf(f, "\nRow status\n");
 		for (i = 1; i <= (size_t)glp_get_num_rows(mpc->op); i++) {

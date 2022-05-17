@@ -17,7 +17,7 @@
 
 int main(int argc, char * argv[]) {
 	int mpc_shmid;
-	struct shared_data * mpc_data;
+	shared_data * mpc_data;
 	char choice;
 	
 	/* Getting the MPC data */
@@ -25,7 +25,7 @@ int main(int argc, char * argv[]) {
 	if (mpc_shmid == -1) {
 		PRINT_ERROR("shmget of MPC failed");
 	}
-	mpc_data = (struct shared_data *)shmat(mpc_shmid, NULL, 0);
+	mpc_data = (shared_data *)shmat(mpc_shmid, NULL, 0);
 
 	printf("Currently executing MPC: %s\n",
 	       MPC_OFFLOAD_IS_ENABLED(mpc_data) ? "SERVER" : "LOCAL");

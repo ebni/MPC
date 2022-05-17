@@ -83,7 +83,7 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param);
 /*
  * Initializing the model with JSON file
  */
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in);
+int model_mpc_startup(mpc_glpk * mpc, json_object * in);
 
 /*
  * GLOBAL VARIABLES
@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
 	size_t i, steps;
 	FILE * matfile;
 
-	struct json_object *model_json;
-	struct json_tokener * tok;
+	json_object *model_json;
+	json_tokener* tok;
 
 	
 	if (argc <= 3) {
@@ -282,7 +282,7 @@ void ctrl_by_mpc(size_t k, dyn_trace * t, void *param)
 
 }
 
-int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
+int model_mpc_startup(mpc_glpk * mpc, json_object * in)
 {
 #ifdef HAVE_OBSTACLE
 	/* TO BE FIXED: ADDED TO JSON FILE?? */
@@ -291,7 +291,7 @@ int model_mpc_startup(mpc_glpk * mpc, struct json_object * in)
 #endif
 #ifdef INIT_X0_JSON
 	size_t i;
-	struct json_object *tmp_elem, *elem;
+	json_object *tmp_elem, *elem;
 #endif
 
 	/* Cleanup the MPC struct */

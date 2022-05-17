@@ -39,7 +39,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	size_t state_num, input_num, n, m;
 	double *state_rd, *input_wr, time;
 	int shm_id, offloaded;
-	struct shared_data * data;
+	shared_data * data;
 	char error_string[1024];
 	double * shared_state; /*from c to matlab*/
 	double * shared_input; /*from matlab to c*/
@@ -89,7 +89,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:shmget",
 				  "Unable to open shared memory");
 	}
-	data = (struct shared_data *)shmat(shm_id, NULL, 0);
+	data = (shared_data *)shmat(shm_id, NULL, 0);
 	shared_state = (double*)(data+1); /* starts just after *data */
 	shared_input = shared_state+data->state_num;
 

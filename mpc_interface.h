@@ -64,17 +64,17 @@
 #define MPC_SOLVER_IP   "127.0.0.1"  /* default IP is localhost */
 #define MPC_SOLVER_PORT 6001         /* default port is something random */
 
-struct shared_data {
+typedef struct shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
 	size_t state_num;            /* number of states */
 	size_t input_num;            /* number of inputs */
 	double u;						 /*test value 42*/
-#if MPC_STATS_INT_LEN
+	#if MPC_STATS_INT_LEN
 	int stats_int[MPC_STATS_INT_LEN];
-#endif
-#if MPC_STATS_DBL_LEN
+	#endif
+	#if MPC_STATS_DBL_LEN
 	double stats_dbl[MPC_STATS_DBL_LEN];
-#endif
+	#endif
 	uint32_t flags;
 	/*
 	 * The shared memory then continues with two arrays of double
@@ -86,7 +86,7 @@ struct shared_data {
 	 *   double input[input_num]
 	 *     used by MPC to communicate the input to the application
 	 */
-};
+} shared_data;
 
 /*
  * The  following  two  macros  rispectively enable  and  disable  the
