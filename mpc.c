@@ -30,6 +30,25 @@
 #define HAS_LOWER 0x01
 #define HAS_UPPER 0x02
 
+//aux functions
+
+/**
+ * @brief function aux for mcp_input_set_bnds that parse input from json obj.
+ * 
+ * @param bnds 
+ * @param bnds_lo 
+ * @param bnds_up 
+ * @param mpc 
+ * @param bnds_has 
+ */
+void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up,
+					mpc_glpk* mpc, char* bnds_has );
+
+void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w);
+
+void min_state_input_norms(mpc_glpk* mpc, json_object * in);
+
+void min_steps_to_zero(mpc_glpk* mpc, json_object * in);
 /*
  * Adding  the variables  for  the  control input  to  the MPC  problem
  * pointed  by  mpc. A successful invocation needs:
@@ -141,12 +160,45 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
 	}
 }
 
+
+
+void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up,
+					mpc_glpk* mpc, char* bnds_has )
+{
+	size_t i;
+	json_object *bnds1,*elem;
+	
+		
+	for (i=0; i < mpc->model->m; i++) {
+		if ((bnds1 = json_object_array_get_idx(bnds, (int)i)) == NULL) {
+			fprintf(stderr, "Erroneous index %i\n", (int)i);
+			PRINT_ERROR("Error in getting an input bound in JSON");
+			return;
+		}
+		/* getting lower bound */
+		elem = json_object_array_get_idx(bnds1, 0);
+		bnds_lo[i] = json_object_get_double(elem);
+		
+		bnds_has[i]|=(isfinite(bnds_lo[i]))? HAS_LOWER:  HAS_NONE;
+		
+		elem = json_object_array_get_idx(bnds1, 1);
+		bnds_up[i] = json_object_get_double(elem);
+		if (isfinite(bnds_up[i]))
+			bnds_has[i] |= HAS_UPPER;
+		else
+			bnds_has[i] |= HAS_NONE;
+	}
+
+}
+
+
 /*
  * Set the bound on the input variables. A successful invocation needs:
  * - GLPK variables of mpc->op be initialized
  * - the JSON object in have the following fields:
  *     "input_bounds", array of lower/upper bound of input
  */
+
 
 /**
  * @brief Set the bound on the input variables.
@@ -161,7 +213,7 @@ void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
 {
 	size_t i,j;
 	int id;
-	json_object * bnds, *bnds1, *elem;
+	json_object * bnds;
 	char *bnds_has;
 	double *bnds_lo, *bnds_up;
 	
@@ -178,30 +230,7 @@ void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
 	bnds_lo  = calloc(mpc->model->m, sizeof(*bnds_lo));
 	bnds_up  = calloc(mpc->model->m, sizeof(*bnds_up));
 
-	//TODO: put input checking in a function
-	/* Parsing input_bounds from JSON file*/
-	for (i=0; i < mpc->model->m; i++) {
-		if ((bnds1 = json_object_array_get_idx(bnds, (int)i)) == NULL) {
-			fprintf(stderr, "Erroneous index %i\n", (int)i);
-			PRINT_ERROR("Error in getting an input bound in JSON");
-			return;
-		}
-		/* getting lower bound */
-		elem = json_object_array_get_idx(bnds1, 0);
-		bnds_lo[i] = json_object_get_double(elem);
-		if (isfinite(bnds_lo[i]))
-			bnds_has[i] |= HAS_LOWER;
-		else
-			bnds_has[i] |= HAS_NONE;
-		
-		/* getting upper bound */
-		elem = json_object_array_get_idx(bnds1, 1);
-		bnds_up[i] = json_object_get_double(elem);
-		if (isfinite(bnds_up[i]))
-			bnds_has[i] |= HAS_UPPER;
-		else
-			bnds_has[i] |= HAS_NONE;
-	}
+	check_input_json(bnds, bnds_lo,  bnds_up, mpc, bnds_has);
 	
 	/* Setting the bounds in the GLPK problem */
 	id = mpc->v_U;
@@ -223,11 +252,13 @@ void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
 			}
 		}
 	}
-
 	free(bnds_has);
 	free(bnds_lo);
 	free(bnds_up);
 }
+
+
+
 
 /*
  * Add constraints on maximum admissible rate of inputs. A successful
@@ -266,6 +297,7 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 	mpc->max_rate = gsl_vector_calloc(mpc->model->m);
 
 	/* Parsing input_bounds from JSON file*/
+	//TODO:Parsing input_bounds from JSON obj
 	for (i=0; i < mpc->model->m; i++) {
 		if ((elem = json_object_array_get_idx(vec_rates, (int)i)) == NULL) {
 			fprintf(stderr, "Erroneous index %i\n", (int)i);
@@ -386,6 +418,23 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
  * the first variable of this type.
  */
 
+void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w)
+{
+	size_t i;
+	json_object *elem;
+	mpc->w = gsl_vector_calloc(mpc->model->n);
+	for (i=0; i < mpc->model->n; i++) {
+		elem = json_object_array_get_idx(vec_w, (int)i);
+		errno = 0;
+		mpc->w->data[i] = json_object_get_double(elem);
+		if (errno) {
+			fprintf(stderr, "Error at index %i\n", (int)i);
+			PRINT_ERROR("issues in converting element of state weight");
+			return;
+		}
+	}
+}
+
 /**
  * @brief Add (mpc->model->H) variables corresponding to the infty-norm of
  * the state from X(1) to X(H).
@@ -406,21 +455,22 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 	gsl_matrix **L; /* linear op from U(0)...U(P) to X(i) */
 	gsl_matrix *tmp;
 	char s[200];
-	json_object * vec_w, *elem;
+	json_object * vec_weight;
 	
 	/* Get the weight of each state component */
-	if (!json_object_object_get_ex(in, "state_weight", &vec_w)) {
+	if (!json_object_object_get_ex(in, "state_weight", &vec_weight)) {
 		PRINT_ERROR("missing state_weight in JSON");
 		return;
 	}
-	if ((size_t)json_object_array_length(vec_w) != mpc->model->n) {
+	if ((size_t)json_object_array_length(vec_weight) != mpc->model->n) {
 		PRINT_ERROR("wrong size of state_weight in JSON");
 		return;
 	}
 
 	/* Allocate/store state weights */
 	mpc->w = gsl_vector_calloc(mpc->model->n);
-	for (i=0; i < mpc->model->n; i++) {
+	mcp_state_normal_store_state_weights(mpc, vec_weight);
+	/*for (i=0; i < mpc->model->n; i++) {
 		elem = json_object_array_get_idx(vec_w, (int)i);
 		errno = 0;
 		mpc->w->data[i] = json_object_get_double(elem);
@@ -429,7 +479,7 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 			PRINT_ERROR("issues in converting element of state weight");
 			return;
 		}
-	}
+	}*/
 
 	/* Just to make code more compact/readable */
 	n = mpc->model->n;
@@ -576,7 +626,8 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
  * @param in  json_object* 	JSON object containing initialization data read from file
  */
 void mpc_state_set_bnds(mpc_glpk * mpc, json_object * in)
-{
+{	
+	
 	size_t i,j,k,num_vars;
 	json_object * bnds, *bnds1, *elem;
 	char s[100];
@@ -686,7 +737,6 @@ void mpc_update_x0(mpc_glpk * mpc) {
 	H = mpc->model->H;
 	id_normZ = mpc->id_norm;
 	id_Xbnds = mpc->id_state_bnds;
-
 	x_k = gsl_vector_calloc(n);
 
 	/* Looping over all state variables from X(1) to X(H) */
@@ -715,6 +765,7 @@ void mpc_update_x0(mpc_glpk * mpc) {
 			}
 
 			/* Updating RHS of state bound constraints */
+			//TODO:write rhs update state bound constraints
 			lo = gsl_vector_get(mpc->x_lo, i);
 			up = gsl_vector_get(mpc->x_up, i);
 			if (isfinite(lo) && isfinite(up))
@@ -755,6 +806,87 @@ void mpc_update_x0(mpc_glpk * mpc) {
  *     "input_weight"
  */
 
+void min_state_input_norms(mpc_glpk* mpc, json_object * in)
+{
+		size_t j;
+		double coef, cur;
+		json_object * cost, *tmp;
+		cost=NULL;
+
+		if (mpc->v_Ninf_X <= 0)
+			mpc_state_norm_addvar(mpc, in);
+		
+		
+		if (!json_object_object_get_ex(cost, "coef", &tmp)) {
+			PRINT_ERROR("missing coef in cost_model in JSON");
+			return;
+		}
+		coef = json_object_get_double(tmp);
+
+		/* Setting objective function */
+		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H)");
+		glp_set_obj_dir(mpc->op, GLP_MIN);
+		cur = 1;
+		for (j = 0; j < mpc->model->H; j++) {
+			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X + (int)j, cur);
+			cur *= coef;
+		}
+}
+
+void min_steps_to_zero(mpc_glpk* mpc, json_object * in)
+{
+
+	size_t j, i;
+	double coef, cur;
+	json_object  *vec_w, *elem, *cost, *tmp;
+	cost=NULL;
+	
+	if (mpc->v_absU <= 0)
+		mpc_input_norm_addvar(mpc);
+
+	/* Cost of the state as in "min_steps_to_zero" */
+	if (!json_object_object_get_ex(cost, "coef", &tmp)) {
+		PRINT_ERROR("missing coef in cost_model in JSON");
+		return;
+	}
+	coef = json_object_get_double(tmp);
+
+	/* Setting objective function */
+	glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H) and L_1 norm of inputs");
+	glp_set_obj_dir(mpc->op, GLP_MIN);
+	cur = 1;
+	for (j = 0; j < mpc->model->H; j++) {
+		glp_set_obj_coef(mpc->op, mpc->v_Ninf_X+(int)j, cur);
+		cur *= coef; /* increasing cost for future states */
+	}
+
+	/* Get the weight of each input */
+	if (!json_object_object_get_ex(cost, "input_weight", &vec_w)) {
+		PRINT_ERROR("missing input_weight in JSON");
+		return;
+	}
+	if ((size_t)json_object_array_length(vec_w) != mpc->model->m) {
+		PRINT_ERROR("wrong size of input_weight in JSON");
+		return;
+	}
+	
+	/* looping over the components */
+	for (j=0; j < mpc->model->m; j++) {
+		elem = json_object_array_get_idx(vec_w, (int)j);
+		errno = 0;
+		cur = json_object_get_double(elem);
+		if (errno) {
+			fprintf(stderr, "Error at index %i\n", (int)j);
+			PRINT_ERROR("issues in converting element of state weight");
+			return;
+		}
+		/* looping over all input vars */
+		for (i=0; i < mpc->h_ctrl+1; i++) {
+			glp_set_obj_coef(mpc->op, mpc->v_absU + (int)((mpc->model->m) * i + j), cur);
+		}
+	}
+}
+
 /**
  * @brief Set the goal of the MPC optimization.
  * 
@@ -775,7 +907,9 @@ void mpc_update_x0(mpc_glpk * mpc) {
  *     	  exponential.
  */
 void mpc_goal_set(mpc_glpk * mpc, json_object * in)
-{
+{   
+
+	//FIXME: enable use of subfunctions
 	json_object * cost, *tmp;
 	const char * type_str;
 	
@@ -796,6 +930,7 @@ void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 
 	/* Cost is "min_steps_to_zero" */
 	if (strcmp(type_str, "min_steps_to_zero") == 0) {
+		//min_state_input_norms(mpc,in);
 		size_t j;
 		double coef, cur;
 
@@ -808,7 +943,7 @@ void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 		}
 		coef = json_object_get_double(tmp);
 
-		/* Setting objective function */
+		/* Setting objective function*/ 
 		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H)");
 		glp_set_obj_dir(mpc->op, GLP_MIN);
 		cur = 1;
@@ -816,6 +951,8 @@ void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X + (int)j, cur);
 			cur *= coef;
 		}
+		
+
 		return;
 	}
 	
@@ -841,7 +978,7 @@ void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 		cur = 1;
 		for (j = 0; j < mpc->model->H; j++) {
 			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X+(int)j, cur);
-			cur *= coef; /* increasing cost for future states */
+			cur *= coef;  /*increasing cost for future states */
 		}
 
 		/* Get the weight of each input */
@@ -869,6 +1006,8 @@ void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 				glp_set_obj_coef(mpc->op, mpc->v_absU + (int)((mpc->model->m) * i + j), cur);
 			}
 		}
+		
+	   // min_steps_to_zero(mpc, in);
 		return;
 	}
 	
