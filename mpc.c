@@ -44,10 +44,37 @@
 void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up,
 					mpc_glpk* mpc, char* bnds_has );
 
+
+/**
+ * @brief support funtion that store normal state weights
+ * 
+ * @param mpc   describing mpc problem structure
+ * @param vec_w vector of weights
+ */
 void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w);
 
+/**
+ * @brief minimizes an overall  cost in which: the
+ *        state is  weighted as  described in  "min_steps_to_zero" (hence
+ *        "coef"  needs  to   b  defined),  the  input   is  weighted  by
+ *        "input_weight"
+ * 
+ * @param mpc describing mpc problem structure
+ * @param in input
+ */
 void min_state_input_norms(mpc_glpk* mpc, json_object * in);
 
+/**
+ * @brief tries to reach a zero norm state (norm being
+ *     defined as  weighted infty-norm  by the  weights "state_weight"
+ *     set in  mpc_state_norm_addvar(...)) in  the smallest  number of
+ *     steps. This is achieved giving exponentially incresing costs to
+ *     state norms  over time. The  field "coef"  is the base  of such
+ *     exponential
+ * 
+ * @param mpc describing mpc problem structure
+ * @param in input
+ */
 void min_steps_to_zero(mpc_glpk* mpc, json_object * in);
 /*
  * Adding  the variables  for  the  control input  to  the MPC  problem
@@ -106,7 +133,7 @@ void mpc_input_addvar(mpc_glpk * mpc, json_object * in)
 }
 
 /**
- * @brief //TODO finish write brief
+ * @brief add a normalized var to mpc
  * 
  * @param mpc mpc_glpk*	The representation of the MPC problem
  */
@@ -162,8 +189,7 @@ void mpc_input_norm_addvar(mpc_glpk * mpc)
 
 
 
-void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up,
-					mpc_glpk* mpc, char* bnds_has )
+void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up, mpc_glpk* mpc, char* bnds_has )
 {
 	size_t i;
 	json_object *bnds1,*elem;
@@ -470,16 +496,7 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 	/* Allocate/store state weights */
 	mpc->w = gsl_vector_calloc(mpc->model->n);
 	mcp_state_normal_store_state_weights(mpc, vec_weight);
-	/*for (i=0; i < mpc->model->n; i++) {
-		elem = json_object_array_get_idx(vec_w, (int)i);
-		errno = 0;
-		mpc->w->data[i] = json_object_get_double(elem);
-		if (errno) {
-			fprintf(stderr, "Error at index %i\n", (int)i);
-			PRINT_ERROR("issues in converting element of state weight");
-			return;
-		}
-	}*/
+	
 
 	/* Just to make code more compact/readable */
 	n = mpc->model->n;
@@ -806,12 +823,23 @@ void mpc_update_x0(mpc_glpk * mpc) {
  *     "input_weight"
  */
 
+
+
 void min_state_input_norms(mpc_glpk* mpc, json_object * in)
 {
 		size_t j;
 		double coef, cur;
 		json_object * cost, *tmp;
-		cost=NULL;
+		if (!json_object_object_get_ex(in, "cost_model", &cost)) {
+		PRINT_ERROR("missing cost_model in JSON");
+		return;
+	}
+
+	/* Getting the type of the cost model */
+	if (!json_object_object_get_ex(cost, "type", &tmp)) {
+		PRINT_ERROR("missing type in cost_model in JSON");
+		return;
+	}
 
 		if (mpc->v_Ninf_X <= 0)
 			mpc_state_norm_addvar(mpc, in);
@@ -839,8 +867,22 @@ void min_steps_to_zero(mpc_glpk* mpc, json_object * in)
 	size_t j, i;
 	double coef, cur;
 	json_object  *vec_w, *elem, *cost, *tmp;
-	cost=NULL;
 	
+	 
+	
+	 //Get the cost model of the MPC 
+	 if (!json_object_object_get_ex(in, "cost_model", &cost)) {
+		PRINT_ERROR("missing cost_model in JSON");
+		return;
+	}
+
+	/* Getting the type of the cost model*/ 
+	if (!json_object_object_get_ex(cost, "type", &tmp)) {
+		PRINT_ERROR("missing type in cost_model in JSON");
+		return;
+	}
+
+
 	if (mpc->v_absU <= 0)
 		mpc_input_norm_addvar(mpc);
 
@@ -909,105 +951,33 @@ void min_steps_to_zero(mpc_glpk* mpc, json_object * in)
 void mpc_goal_set(mpc_glpk * mpc, json_object * in)
 {   
 
-	//FIXME: enable use of subfunctions
-	json_object * cost, *tmp;
-	const char * type_str;
+	 json_object * cost,*tmp;
+	 const char * type_str;
 	
-	/* Get the cost model of the MPC */
-	if (!json_object_object_get_ex(in, "cost_model", &cost)) {
+	 //Get the cost model of the MPC 
+	 if (!json_object_object_get_ex(in, "cost_model", &cost)) {
 		PRINT_ERROR("missing cost_model in JSON");
 		return;
 	}
 
-	/* Getting the type of the cost model */
+	/* Getting the type of the cost model*/ 
 	if (!json_object_object_get_ex(cost, "type", &tmp)) {
 		PRINT_ERROR("missing type in cost_model in JSON");
 		return;
-	}
+	} 
 
 	/* Getting the string and then customizing the code accordingly */
 	type_str = json_object_get_string(tmp);
 
 	/* Cost is "min_steps_to_zero" */
 	if (strcmp(type_str, "min_steps_to_zero") == 0) {
-		//min_state_input_norms(mpc,in);
-		size_t j;
-		double coef, cur;
-
-		if (mpc->v_Ninf_X <= 0)
-			mpc_state_norm_addvar(mpc, in);
-		
-		if (!json_object_object_get_ex(cost, "coef", &tmp)) {
-			PRINT_ERROR("missing coef in cost_model in JSON");
-			return;
-		}
-		coef = json_object_get_double(tmp);
-
-		/* Setting objective function*/ 
-		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H)");
-		glp_set_obj_dir(mpc->op, GLP_MIN);
-		cur = 1;
-		for (j = 0; j < mpc->model->H; j++) {
-			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X + (int)j, cur);
-			cur *= coef;
-		}
-		
-
+		min_state_input_norms(mpc,in);
 		return;
 	}
 	
 	/* Cost is "min_state_input_norms" */
-	if (strcmp(type_str, "min_state_input_norms") == 0) {
-		size_t j, i;
-		double coef, cur;
-		json_object * vec_w, *elem;
-
-		if (mpc->v_absU <= 0)
-			mpc_input_norm_addvar(mpc);
-
-		/* Cost of the state as in "min_steps_to_zero" */
-		if (!json_object_object_get_ex(cost, "coef", &tmp)) {
-			PRINT_ERROR("missing coef in cost_model in JSON");
-			return;
-		}
-		coef = json_object_get_double(tmp);
-
-		/* Setting objective function */
-		glp_set_obj_name(mpc->op, "Min weighted L_infty norm of states X(1) to X(H) and L_1 norm of inputs");
-		glp_set_obj_dir(mpc->op, GLP_MIN);
-		cur = 1;
-		for (j = 0; j < mpc->model->H; j++) {
-			glp_set_obj_coef(mpc->op, mpc->v_Ninf_X+(int)j, cur);
-			cur *= coef;  /*increasing cost for future states */
-		}
-
-		/* Get the weight of each input */
-		if (!json_object_object_get_ex(cost, "input_weight", &vec_w)) {
-			PRINT_ERROR("missing input_weight in JSON");
-			return;
-		}
-		if ((size_t)json_object_array_length(vec_w) != mpc->model->m) {
-			PRINT_ERROR("wrong size of input_weight in JSON");
-			return;
-		}
-		
-		/* looping over the components */
-		for (j=0; j < mpc->model->m; j++) {
-			elem = json_object_array_get_idx(vec_w, (int)j);
-			errno = 0;
-			cur = json_object_get_double(elem);
-			if (errno) {
-				fprintf(stderr, "Error at index %i\n", (int)j);
-				PRINT_ERROR("issues in converting element of state weight");
-				return;
-			}
-			/* looping over all input vars */
-			for (i=0; i < mpc->h_ctrl+1; i++) {
-				glp_set_obj_coef(mpc->op, mpc->v_absU + (int)((mpc->model->m) * i + j), cur);
-			}
-		}
-		
-	   // min_steps_to_zero(mpc, in);
+	if (strcmp(type_str, "min_state_input_norms") == 0) {		
+	    min_steps_to_zero(mpc, in);
 		return;
 	}
 	

@@ -381,11 +381,8 @@ void dyn_trace_free(dyn_trace * t)
 }
 
 
-void dyn_plant_dynamics(const dyn_plant * p,
-			const gsl_vector * x_0,
-			dyn_trace * t,
-			void (*ctrl_law)(size_t, dyn_trace *, void *),
-			void * param)
+void dyn_plant_dynamics(const dyn_plant * p, const gsl_vector * x_0, dyn_trace * t,
+						void (*ctrl_law)(size_t, dyn_trace *, void *), void * param)
 {
 	size_t i;
 	gsl_vector *x_next, *x_cur, *u_cur;
