@@ -46,6 +46,14 @@ void check_input_json(json_object * bnds, double* bnds_lo, double* bnds_up,
 
 
 /**
+ * @brief auxiliary function for mpc_input_set_delta() for parsing json data
+ * 
+ * @param mpc 
+ * @param vec_rates 
+ */
+void parse_json_input_set_delta(mpc_glpk* mpc, json_object *vec_rates);
+
+/**
  * @brief support funtion that store normal state weights
  * 
  * @param mpc   describing mpc problem structure
@@ -284,7 +292,23 @@ void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
 }
 
 
-
+void parse_json_input_set_delta(mpc_glpk* mpc, json_object *vec_rates)
+{
+	size_t i;
+	json_object *elem;
+		
+	for (i=0; i < mpc->model->m; i++) {
+		if ((elem = json_object_array_get_idx(vec_rates, (int)i)) == NULL) {
+			fprintf(stderr, "Erroneous index %i\n", (int)i);
+			PRINT_ERROR("Error in getting an input max rate in JSON");
+			return;
+		}
+		gsl_vector_set(mpc->max_rate, i, json_object_get_double(elem));
+		if (!isfinite(gsl_vector_get(mpc->max_rate, i)))
+			/* means no max rate is set */
+			gsl_vector_set(mpc->max_rate, i, -1);
+	}
+}
 
 /*
  * Add constraints on maximum admissible rate of inputs. A successful
@@ -303,13 +327,14 @@ void mpc_input_set_bnds(mpc_glpk * mpc, json_object * in)
  * @note The JSON object in must have the "input_rate_max" field,
  * 	     array of max input rates, initialized 
  */
+//TODO:
 void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 {
 	char s[200];
 	double * val, *bnd;
 	size_t i, j;
 	int id, *ind;
-	json_object * vec_rates, *elem;
+	json_object * vec_rates; //,*elem;
 	
 	/* Get the input bounds */
 	if (!json_object_object_get_ex(in, "input_rate_max", &vec_rates)) {
@@ -321,10 +346,10 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 		return;
 	}
 	mpc->max_rate = gsl_vector_calloc(mpc->model->m);
-
+	parse_json_input_set_delta(mpc, vec_rates);
 	/* Parsing input_bounds from JSON file*/
 	//TODO:Parsing input_bounds from JSON obj
-	for (i=0; i < mpc->model->m; i++) {
+	/* for (i=0; i < mpc->model->m; i++) {
 		if ((elem = json_object_array_get_idx(vec_rates, (int)i)) == NULL) {
 			fprintf(stderr, "Erroneous index %i\n", (int)i);
 			PRINT_ERROR("Error in getting an input max rate in JSON");
@@ -332,9 +357,9 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 		}
 		gsl_vector_set(mpc->max_rate, i, json_object_get_double(elem));
 		if (!isfinite(gsl_vector_get(mpc->max_rate, i)))
-			/* means no max rate is set */
+			// means no max rate is set
 			gsl_vector_set(mpc->max_rate, i, -1);
-	}
+	} */
 
 	/* extra variable to have more compact code */
 	bnd = mpc->max_rate->data; 
@@ -369,7 +394,6 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 	free(ind);
 	free(val);
 }
-
 
 /*
  * Add  constraints  on  maximum/minimum  first  input  based  on  max
@@ -827,10 +851,11 @@ void mpc_update_x0(mpc_glpk * mpc) {
 
 void min_state_input_norms(mpc_glpk* mpc, json_object * in)
 {
-		size_t j;
-		double coef, cur;
-		json_object * cost, *tmp;
-		if (!json_object_object_get_ex(in, "cost_model", &cost)) {
+	size_t j;
+	double coef, cur;
+	json_object * cost, *tmp;
+
+	if (!json_object_object_get_ex(in, "cost_model", &cost)) {
 		PRINT_ERROR("missing cost_model in JSON");
 		return;
 	}
