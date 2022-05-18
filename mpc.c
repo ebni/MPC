@@ -327,7 +327,6 @@ void parse_json_input_set_delta(mpc_glpk* mpc, json_object *vec_rates)
  * @note The JSON object in must have the "input_rate_max" field,
  * 	     array of max input rates, initialized 
  */
-//TODO:
 void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 {
 	char s[200];
@@ -347,35 +346,17 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
 	}
 	mpc->max_rate = gsl_vector_calloc(mpc->model->m);
 	parse_json_input_set_delta(mpc, vec_rates);
-	/* Parsing input_bounds from JSON file*/
-	//TODO:Parsing input_bounds from JSON obj
-	/* for (i=0; i < mpc->model->m; i++) {
-		if ((elem = json_object_array_get_idx(vec_rates, (int)i)) == NULL) {
-			fprintf(stderr, "Erroneous index %i\n", (int)i);
-			PRINT_ERROR("Error in getting an input max rate in JSON");
-			return;
-		}
-		gsl_vector_set(mpc->max_rate, i, json_object_get_double(elem));
-		if (!isfinite(gsl_vector_get(mpc->max_rate, i)))
-			// means no max rate is set
-			gsl_vector_set(mpc->max_rate, i, -1);
-	} */
-
 	/* extra variable to have more compact code */
-	bnd = mpc->max_rate->data; 
-	
+	bnd = mpc->max_rate->data; 	
 	ind = malloc(3*sizeof(*ind));
 	val = malloc(3*sizeof(*val));
 	for (i=0; i < mpc->h_ctrl; i++) {
 		for (j=0; j < mpc->model->m; j++) {
-			if (bnd[j] < 0) {
-				/* No max rate */
+			if (bnd[j] < 0) /* No max rate */
 				continue;
-			}
 			id = glp_add_rows(mpc->op, 1);
-			if (!(i|j)) { /* i==0 && j==0 */
+			if (!(i|j)) /* i==0 && j==0 */
 				mpc->id_deltaU = id;
-			}
 			sprintf(s,"U%i[%02i]_(rate)",(int)j,(int)i);
 			glp_set_row_name(mpc->op, id, s);
 			ind[1] = (int)(i*mpc->model->m+j+1);
@@ -416,6 +397,7 @@ void mpc_input_set_delta(mpc_glpk * mpc, json_object * in)
  * 		 array of max input rates, initiaized
  * @note The parameter u0 must be set with last input
  */
+//TODO: continue from here
 void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
 {
 	gsl_vector *lo, *up;
@@ -427,7 +409,6 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
 	gsl_vector_memcpy(lo, u0);
 	up = gsl_vector_calloc(mpc->model->m);
 	gsl_vector_memcpy(up, u0);
-
 	/* Get and possibly set new bounds in the GLPK problem */
 	id = mpc->v_U;
 	for (i=0; i < mpc->h_ctrl+1; i++) {
@@ -435,10 +416,8 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
 		gsl_vector_sub(lo, mpc->max_rate);
 		gsl_vector_add(up, mpc->max_rate);
 		for (j=0; j < mpc->model->m; j++, id++) {
-			if (gsl_vector_get(mpc->max_rate, j) < 0) {
-				/* no max rate, just skip */
+			if (gsl_vector_get(mpc->max_rate, j) < 0) /* no max rate, just skip */
 				continue;
-			}
 			if (gsl_vector_get(mpc->max_rate, j) == 0) {
 				/* no admitted change, keep var constant */
 				bnd = gsl_vector_get(u0, j);
@@ -453,8 +432,6 @@ void mpc_input_set_delta0(mpc_glpk * mpc, const gsl_vector * u0)
 			glp_set_col_bnds(mpc->op, id, GLP_DB, col_lo, col_up);
 		}
 	}
-
-	
 }
 
 /*
@@ -472,6 +449,7 @@ void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w)
 {
 	size_t i;
 	json_object *elem;
+
 	mpc->w = gsl_vector_calloc(mpc->model->n);
 	for (i=0; i < mpc->model->n; i++) {
 		elem = json_object_array_get_idx(vec_w, (int)i);
@@ -520,7 +498,6 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 	/* Allocate/store state weights */
 	mpc->w = gsl_vector_calloc(mpc->model->n);
 	mcp_state_normal_store_state_weights(mpc, vec_weight);
-	
 
 	/* Just to make code more compact/readable */
 	n = mpc->model->n;
@@ -530,10 +507,8 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 
 	/* Allocate and initialize the linear operator from U to X(i) */
 	L = malloc((p+1)*sizeof(*L));
-	for (i=0; i <= p+1; i++) {
+	for (i=0; i <= p+1; i++)
 		L[i] = gsl_matrix_calloc(n, m);
-	}
-
 	/* Indices and value arrays to store the coefficients */
 	ind = calloc((2+m*(mpc->h_ctrl+1)), sizeof(*ind));
 	val_up = calloc((2+m*(mpc->h_ctrl+1)), sizeof(*val_up));
