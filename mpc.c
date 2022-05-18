@@ -61,6 +61,10 @@ void parse_json_input_set_delta(mpc_glpk* mpc, json_object *vec_rates);
  */
 void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w);
 
+
+void alloc_and_init_lin_op_from_u_to_x(mpc_glpk *mpc, gsl_matrix **L, double *val_up, 
+										int *ind, gsl_vector *gsl_val);
+
 /**
  * @brief minimizes an overall  cost in which: the
  *        state is  weighted as  described in  "min_steps_to_zero" (hence
@@ -463,6 +467,21 @@ void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w)
 	}
 }
 
+
+void alloc_and_init_lin_op_from_u_to_x(mpc_glpk *mpc, gsl_matrix **L, double *val_up, 
+										int *ind, gsl_vector *gsl_val)
+{
+	size_t n = mpc->model->n, m = mpc->model->m, p = mpc->h_ctrl, i;
+
+	L = malloc((p + 1) * sizeof(*L));
+	for (i = 0; i <= p + 1; i++)
+		L[i] = gsl_matrix_calloc(n, m);
+	// Indices and value arrays to store the coefficients
+	ind = calloc((2 + m * (mpc->h_ctrl + 1)), sizeof(*ind));
+	val_up = calloc((2 + m * (mpc->h_ctrl + 1)), sizeof(*val_up));
+	gsl_val = gsl_vector_calloc(m);
+}
+
 /**
  * @brief Add (mpc->model->H) variables corresponding to the infty-norm of
  * the state from X(1) to X(H).
@@ -477,10 +496,10 @@ void mcp_state_normal_store_state_weights(mpc_glpk * mpc, json_object * vec_w)
 void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 {
 	size_t i, j, k, n, m, H, p;
-	int *ind, id;
-	double *val_up; /*, *val_lo; */
-	gsl_vector *gsl_val;
-	gsl_matrix **L; /* linear op from U(0)...U(P) to X(i) */
+	int *ind = NULL, id;
+	double *val_up = NULL; /*, *val_lo; */
+	gsl_vector *gsl_val = NULL;
+	gsl_matrix **L = NULL; /* linear op from U(0)...U(P) to X(i) */
 	gsl_matrix *tmp;
 	char s[200];
 	json_object * vec_weight;
@@ -504,35 +523,36 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 	m = mpc->model->m;
 	H = mpc->model->H;
 	p = mpc->h_ctrl;
-
+	
+	alloc_and_init_lin_op_from_u_to_x(mpc, L, val_up, ind, gsl_val);
 	/* Allocate and initialize the linear operator from U to X(i) */
-	L = malloc((p+1)*sizeof(*L));
-	for (i=0; i <= p+1; i++)
+	L = malloc((p + 1) * sizeof(*L));
+	for (i = 0; i <= p + 1; i++)
 		L[i] = gsl_matrix_calloc(n, m);
 	/* Indices and value arrays to store the coefficients */
-	ind = calloc((2+m*(mpc->h_ctrl+1)), sizeof(*ind));
-	val_up = calloc((2+m*(mpc->h_ctrl+1)), sizeof(*val_up));
+	ind = calloc((2 + m * (mpc->h_ctrl + 1)), sizeof(*ind));
+	val_up = calloc((2 + m * (mpc->h_ctrl + 1)), sizeof(*val_up));
 	/*	val_lo = calloc((2+m*(mpc->h_ctrl+1)), sizeof(*val_lo)); */
 	gsl_val = gsl_vector_calloc(m);
 
 	/* Looping over all state variables from X(1) to X(H) */
-	for (i=1; i<=H; i++) {
+	for (i = 1; i <= H; i++) {
 		/* 
 		 * Add variable |X(i)|_inf.
 		 * Also, preparing the linear operator from U to X(i)
 		 */
-		if (i==1) {
+		if (i == 1) {
 			mpc->v_Ninf_X = id = glp_add_cols(mpc->op, 1);
 			gsl_matrix_memcpy(L[0], mpc->model->ABd[0]);
 		} else {
 			id = glp_add_cols(mpc->op, 1);
-			if (i <= p+1) {
-				tmp = L[i-1];
-				for (j=i-1; j>=1; j--)
-					L[j] = L[j-1];
+			if (i <= p + 1) {
+				tmp = L[i - 1];
+				for (j = i - 1; j >= 1; j--)
+					L[j] = L[j - 1];
 				L[0] = tmp;
 				gsl_blas_dgemm(CblasNoTrans, CblasNoTrans,
-					       1,mpc->model->Ad[0],L[1],0,L[0]);
+					       1, mpc->model->Ad[0],L[1],0,L[0]);
 			} else {
 				tmp = L[p];
 				for (j=p; j>=1; j--)
@@ -609,23 +629,7 @@ void mpc_state_norm_addvar(mpc_glpk * mpc, json_object * in)
 	 * The RHS of inequalities are set by invoking mpc_update_x0
 	 * in the main or whenever is needed
 	 */
-#if 0
-	/* Printing the full problem for debugging */
-	glp_write_lp(mpc->op, NULL, "test.txt");
-	glp_print_prob(mpc->op);
-#endif
 
-	/* Free memory */
-	for (i=0; i <= p+1; i++) {
-		/*
-		 * EB: messing up 
-		 gsl_matrix_free(L[i]);
-		*/
-	}
-	/*	free(L);
-	free(ind);
-	free(val_up); */
-/*	free(val_lo); */
 }
 
 /*
@@ -863,15 +867,12 @@ void min_state_input_norms(mpc_glpk* mpc, json_object * in)
 
 void min_steps_to_zero(mpc_glpk* mpc, json_object * in)
 {
-
 	size_t j, i;
 	double coef, cur;
 	json_object  *vec_w, *elem, *cost, *tmp;
 	
-	 
-	
-	 //Get the cost model of the MPC 
-	 if (!json_object_object_get_ex(in, "cost_model", &cost)) {
+	//Get the cost model of the MPC 
+	if (!json_object_object_get_ex(in, "cost_model", &cost)) {
 		PRINT_ERROR("missing cost_model in JSON");
 		return;
 	}
