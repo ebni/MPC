@@ -1,4 +1,0 @@
-1 - gprof non riesce ad analizzare le funzioni che non impiegano almeno 1 microsecondo
-2 - file con modifiche a len_horizon
-3 - refactoring codice
-4 - valutare di estendere durata 

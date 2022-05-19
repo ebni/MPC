@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "dyn.h": "c",
+        "mpc.h": "c"
+    }
+}
