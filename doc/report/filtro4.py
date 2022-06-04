@@ -19,7 +19,7 @@ def plot_results():
         maximum = []
         exec_num = []
         for j in range(0, executions[key]):
-            #plot y = value
+            #create y(value)
             average.append(avg[key])
             minimum.append(min[key])
             maximum.append(max[key])
@@ -46,6 +46,7 @@ extrapolates statistics:
     
     output options:
         print -> print to argv[3]
+        printh -> print to argv[3] with header included
         plot -> plot graph
         all -> do every output redirection option
 
@@ -92,7 +93,7 @@ with open(data_file) as f1:
                 tempi2[nome_funzione] = []
 
             if nome_funzione not in min:
-                min[nome_funzione] = 1000000000
+                min[nome_funzione] = float('inf')
 
             if nome_funzione not in max:
                 max[nome_funzione] = 0
@@ -126,16 +127,23 @@ with open(data_file) as f1:
         std_dev[key] = np.std(tempi2[key]) 
 
 do = True
-if len(sys.argv) > 3 and (sys.argv[2] == "print" or sys.argv[2] == "all"):
+if len(sys.argv) > 2 and (sys.argv[2] == "print" or sys.argv[2] == "printh" or sys.argv[2] == "all"):
     do = False
-    file = sys.argv[3]
+    if len(sys.argv) > 3:
+        file = sys.argv[3]
+    else:
+        file = "output.csv"
     with open(file, 'a') as f2:
+        if sys.argv[2] == "printh" or sys.argv[2] == "all":
+            print("func_name,tot_exec_time,tot_exec,min_exec_time,max_exec_time,average,std_dev", file = f2)
         for key, value in tempi.items():
-            print(key,",",value,",",executions[key],",",min[key],",",max[key],",",avg[key],",",std_dev[key], file = f2)
-if len(sys.argv) > 3 and (sys.argv[2] == "plot" or sys.argv[2] == "all"):
+            print(str(key) + "," + str(value) + "," + str(executions[key]) + "," + str(min[key]) + "," +
+                str(max[key]) + "," + str(avg[key]) + "," + str(std_dev[key]), file = f2)
+if len(sys.argv) > 2 and (sys.argv[2] == "plot" or sys.argv[2] == "all"):
     do = False
     plot_results()
 
 if do:
     for key, value in tempi.items():
-        print(key,",",value,",",executions[key],",",min[key],",",max[key],",",avg[key],",",std_dev[key])
+        print(key + "," + value + "," + executions[key] + "," + min[key] + "," +
+                max[key] + "," + avg[key] + "," + std_dev[key])

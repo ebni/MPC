@@ -3,9 +3,13 @@
 #LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -L/home/asctec/usrlocal/lib -Wl,-rpath -Wl,/home/asctec/usrlocal/lib
 
 # Working flages elsewhere
-
-CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g -pg
-LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread -pg 
+PIN_CPU = 
+#-DENABLE_CPU_PIN
+TRACING = -DTRACING
+GPROF = -pg
+MACROS = $(TRACING) $(PIN_CPU) -DPRINT_LOG
+CFLAGS = -pedantic -Werror -Wall -Wno-sign-conversion -Wmissing-prototypes -Wstrict-prototypes -Wconversion -Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wnested-externs -fshort-enums -fno-common -Dinline= -O0 -g $(GPROF) $(MACROS)
+LDFLAGS = -lm -ljson-c -lrt -lgsl -lgslcblas -lglpk -lpthread $(GPROF) 
 T =
 BROWSER =
 ifndef $(T)
@@ -39,7 +43,7 @@ TRACE = /sys/kernel/tracing/
 TERMINAL = gnome-terminal --tab -- bash -i -c
 RECORD_CMD = sudo trace-cmd record -e sched_switch -F 
 REPORT_CMD = trace-cmd report -t | grep
-PYTHON = python3 $(REPORT)/filtro3.py
+PYTHON = python3 $(REPORT)/filtro4.py
 #end command parts
 
 #files
@@ -166,4 +170,15 @@ read_doc:
 	$(BROWSER) $(INDEX)
 
 trace:
-	./trace.sh
+	./trace.sh autoclose
+
+trace_debug:
+	./trace.sh 1
+
+filter: filter_server filter_ctrl
+
+filter_server:
+	$(PYTHON) $(REPORT)/trace_server.txt $(REPORT)/trace_server_sum.txt $(I)
+
+filter_ctrl:
+	$(PYTHON) $(REPORT)/trace_ctrl.txt $(REPORT)/trace_ctrl_sum.txt $(I)

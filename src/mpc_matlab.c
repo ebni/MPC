@@ -115,6 +115,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	}
 
 	/* Create a pointer to the real data in the state vector  */
+	//EXP: attention remember this macro
 	#if MX_HAS_INTERLEAVED_COMPLEX
 		state_rd = mxGetDoubles(prhs[0]);
 	#else

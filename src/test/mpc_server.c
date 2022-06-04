@@ -40,14 +40,120 @@
 
 #define USE_DUAL
 #define CLIENT_SOLVER
-#define PRINT_LOG
+//#define PRINT_LOG
 
 #include <sys/stat.h>
 #include <fcntl.h>
 
 
 #define MARKER_FILE "/sys/kernel/tracing/trace_marker"
-#define BUF_LEN 100
+#define BUF_LEN 400
+
+// struct glp_prob
+// {     /* LP/MIP problem object */
+//       unsigned magic;
+//       /* magic value used for debugging */
+//       DMP *pool;
+//       /* memory pool to store problem object components */
+//       glp_tree *tree;
+//       /* pointer to the search tree; set by the MIP solver when this
+//          object is used in the tree as a core MIP object */
+// #if 0 /* 08/III-2014 */
+//       void *parms;
+//       /* reserved for backward compatibility */
+// #endif
+//       /*--------------------------------------------------------------*/
+//       /* LP/MIP data */
+//       char *name;
+//       /* problem name (1 to 255 chars); NULL means no name is assigned
+//          to the problem */
+//       char *obj;
+//       /* objective function name (1 to 255 chars); NULL means no name
+//          is assigned to the objective function */
+//       int dir;
+//       /* optimization direction flag (objective "sense"):
+//          GLP_MIN - minimization
+//          GLP_MAX - maximization */
+//       double c0;
+//       /* constant term of the objective function ("shift") */
+//       int m_max;
+//       /* length of the array of rows (enlarged automatically) */
+//       int n_max;
+//       /* length of the array of columns (enlarged automatically) */
+//       int m;
+//       /* number of rows, 0 <= m <= m_max */
+//       int n;
+//       /* number of columns, 0 <= n <= n_max */
+//       int nnz;
+//       /* number of non-zero constraint coefficients, nnz >= 0 */
+//       GLPROW **row; /* GLPROW *row[1+m_max]; */
+//       /* row[i], 1 <= i <= m, is a pointer to i-th row */
+//       GLPCOL **col; /* GLPCOL *col[1+n_max]; */
+//       /* col[j], 1 <= j <= n, is a pointer to j-th column */
+//       AVL *r_tree;
+//       /* row index to find rows by their names; NULL means this index
+//          does not exist */
+//       AVL *c_tree;
+//       /* column index to find columns by their names; NULL means this
+//          index does not exist */
+//       /*--------------------------------------------------------------*/
+//       /* basis factorization (LP) */
+//       int valid;
+//       /* the factorization is valid only if this flag is set */
+//       int *head; /* int head[1+m_max]; */
+//       /* basis header (valid only if the factorization is valid);
+//          head[i] = k is the ordinal number of auxiliary (1 <= k <= m)
+//          or structural (m+1 <= k <= m+n) variable which corresponds to
+//          i-th basic variable xB[i], 1 <= i <= m */
+// #if 0 /* 08/III-2014 */
+//       glp_bfcp *bfcp;
+//       /* basis factorization control parameters; may be NULL */
+// #endif
+//       BFD *bfd; /* BFD bfd[1:m,1:m]; */
+//       /* basis factorization driver; may be NULL */
+//       /*--------------------------------------------------------------*/
+//       /* basic solution (LP) */
+//       int pbs_stat;
+//       /* primal basic solution status:
+//          GLP_UNDEF  - primal solution is undefined
+//          GLP_FEAS   - primal solution is feasible
+//          GLP_INFEAS - primal solution is infeasible
+//          GLP_NOFEAS - no primal feasible solution exists */
+//       int dbs_stat;
+//       /* dual basic solution status:
+//          GLP_UNDEF  - dual solution is undefined
+//          GLP_FEAS   - dual solution is feasible
+//          GLP_INFEAS - dual solution is infeasible
+//          GLP_NOFEAS - no dual feasible solution exists */
+//       double obj_val;
+//       /* objective function value */
+//       int it_cnt;
+//       /* simplex method iteration count; increases by one on performing
+//          one simplex iteration */
+//       int some;
+//       /* ordinal number of some auxiliary or structural variable having
+//          certain property, 0 <= some <= m+n */
+//       /*--------------------------------------------------------------*/
+//       /* interior-point solution (LP) */
+//       int ipt_stat;
+//       /* interior-point solution status:
+//          GLP_UNDEF  - interior solution is undefined
+//          GLP_OPT    - interior solution is optimal
+//          GLP_INFEAS - interior solution is infeasible
+//          GLP_NOFEAS - no feasible solution exists */
+//       double ipt_obj;
+//       /* objective function value */
+//       /*--------------------------------------------------------------*/
+//       /* integer solution (MIP) */
+//       int mip_stat;
+//       /* integer solution status:
+//          GLP_UNDEF  - integer solution is undefined
+//          GLP_OPT    - integer solution is optimal
+//          GLP_FEAS   - integer solution is feasible
+//          GLP_NOFEAS - no integer solution exists */
+//       double mip_obj;
+//       /* objective function value */
+// };
 
 void print_mark(const char *msg);
 
@@ -311,22 +417,33 @@ int main(int argc, char *argv[])
 		size_out = sizeof(*buf_out)*u->size;
 	#endif
 	#ifdef CLIENT_SOLVER
+		#ifdef TRACING
 		print_mark("SERVER: @mpc_status_alloc# - start");
+		#endif
 		mpc_st = mpc_status_alloc(&my_mpc);
+		#ifdef TRACING
 		print_mark("SERVER: @mpc_status_alloc# - end");
+		#endif
 		buf_in = buf_out = mpc_st->block;
 		size_in = size_out = mpc_st->size;
 	#endif
 	/* Server cycle: Listening forever  */
 	for (k=0; /* never stop */; k++) {
 		len = sizeof(cliaddr);
+		
 		#ifdef TEST_PARTIAL_OPTIMIZATION
-			num = (int)
+		num = (int)
 		#endif
+
+		#ifdef TRACING
 		print_mark("SERVER: @recvfrom# - start");		
+		#endif
+
 		recvfrom(listenfd, buf_in, size_in, 
 			    0, (struct sockaddr*)&cliaddr, &len);
+		#ifdef TRACING
 		print_mark("SERVER: @recvfrom# - end");
+		#endif
 		
 		#ifdef CLIENT_MATLAB
 			/* 
@@ -366,62 +483,90 @@ int main(int argc, char *argv[])
 		#endif /* CLIENT_MATLAB */
 		#ifdef CLIENT_SOLVER
 			#ifdef PRINT_LOG
-					printf("MESSAGE: %ld\n", k);
-					fprintf(stdout, "status received\n");
-					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+			printf("MESSAGE: %ld\n", k);
+			fprintf(stdout, "status received\n");
+			mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 			#endif /* PRINT_LOG */
-				/* 
-				* Condition to launch MPC server: current solution is
-				* not optimal and we have budgets
-				*/
+			
+			/* 
+			* Condition to launch MPC server: current solution is
+			* not optimal and we have budgets
+			*/
 			#ifdef TEST_PARTIAL_OPTIMIZATION /* OLD CODE: TO BE FIXED */
-					if ((*mpc_st->prim_stat != GLP_FEAS ||
-						*mpc_st->dual_stat != GLP_FEAS) &&
-						*mpc_st->steps_bdg > 0 && *mpc_st->time_bdg > 0) {
-						/* Resuming the status of the solver just received */
-						mpc_status_resume(&my_mpc, mpc_st);
-					
-						/* Solve it by Simplex and measure time/steps */
-						num = glp_get_it_cnt(my_mpc.op);
-						clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-						glp_simplex(my_mpc.op, my_mpc.param);
-						clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-						num = glp_get_it_cnt(my_mpc.op) - num;
-						time =  (double)(toc.tv_sec-tic.tv_sec);
-						time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
+			if ((*mpc_st->prim_stat != GLP_FEAS ||
+				*mpc_st->dual_stat != GLP_FEAS) &&
+				*mpc_st->steps_bdg > 0 && *mpc_st->time_bdg > 0) {
+				/* Resuming the status of the solver just received */
+				mpc_status_resume(&my_mpc, mpc_st);
+			
+				/* Solve it by Simplex and measure time/steps */
+				num = glp_get_it_cnt(my_mpc.op);
+				clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+				glp_simplex(my_mpc.op, my_mpc.param);
+				clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+				num = glp_get_it_cnt(my_mpc.op) - num;
+				time =  (double)(toc.tv_sec-tic.tv_sec);
+				time += (double)(toc.tv_nsec-tic.tv_nsec)*1e-9;
 
-						/* Storing used budget */
-						*mpc_st->steps_bdg = num;
-						*mpc_st->time_bdg  = time;
+				/* Storing used budget */
+				*mpc_st->steps_bdg = num;
+				*mpc_st->time_bdg  = time;
 
-						/* Saving the updated solver status: ready to send */
-						mpc_status_save(&my_mpc, mpc_st);
-					} else {
-						/* Do nothing. Just set to 0 the used budgets */
-						*mpc_st->steps_bdg = 0;
-						*mpc_st->time_bdg  = 0;
-					}
+				/* Saving the updated solver status: ready to send */
+				mpc_status_save(&my_mpc, mpc_st);
+			} else {
+				/* Do nothing. Just set to 0 the used budgets */
+				*mpc_st->steps_bdg = 0;
+				*mpc_st->time_bdg  = 0;
+			}
 			#else
-					/* update initial state */
-					print_mark("SERVER: @mpc_status_set_x0# - start");		
-					mpc_status_set_x0(&my_mpc, mpc_st);
-					print_mark("SERVER: @mpc_status_set_x0# - end");		
-					print_mark("SERVER: @glp_simplex# - start");		
-					glp_simplex(my_mpc.op, my_mpc.param);
-					print_mark("SERVER: @glp_simplex# - end");
-						
-					mpc_status_save(&my_mpc, mpc_st);
+			/* update initial state */
+			#ifdef TRACING
+			print_mark("SERVER: @mpc_status_set_x0# - start");		
+			#endif
+			
+			mpc_status_set_x0(&my_mpc, mpc_st);
+			
+			#ifdef TRACING			
+			print_mark("SERVER: @mpc_status_set_x0# - end");
+			char msg[BUF_LEN+1000];
+			char status_buf[BUF_LEN];
+			print_mark("SERVER: @glp_simplex# - start");
+			#endif			
+
+			glp_simplex(my_mpc.op, my_mpc.param);
+
+			#ifdef TRACING
+			bzero(msg, BUF_LEN+1000);
+			bzero(status_buf, BUF_LEN);
+			strcat(msg, "SERVER: @glp_simplex# - end {");
+			mpc_get_status(status_buf, &my_mpc, mpc_st);
+			strcat(msg, status_buf);
+			strcat(msg, "}");
+			print_mark(msg);			
+			#endif		
+			
+			mpc_status_save(&my_mpc, mpc_st);
+			
 			#endif  /* TEST_PARTIAL_OPTIMIZATION */
+			
 			#ifdef PRINT_LOG
-					printf("MESSAGE: %ld\n", k);
-					fprintf(stdout, "status after optimization\n");
-					mpc_status_fprintf(stdout, &my_mpc, mpc_st);
+			printf("MESSAGE: %ld\n", k);
+			fprintf(stdout, "status after optimization\n");
+			mpc_status_fprintf(stdout, &my_mpc, mpc_st);
 			#endif /* PRINT_LOG */
 		#endif /* CLIENT_SOLVER */
+		
+		#ifdef TRACING
 		print_mark("SERVER: @sendto# - start");		
+		#endif
+		
 		sendto(listenfd, buf_out, size_out, 0, 
 		    (struct sockaddr*)&cliaddr, sizeof(cliaddr));
+		
+		#ifdef TRACING
 		print_mark("SERVER: @sendto# - end");
+		#endif
 	}
 
 	/* Free all */
@@ -537,7 +682,8 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-	#if SCHED_SETATTR_IN_SCHED_H
+	#ifdef ENABLE_CPU_PIN
+		#if SCHED_SETATTR_IN_SCHED_H
 		/* EB: TO BE TESTED */
 		struct sched_attr attr;
 		
@@ -549,38 +695,13 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 			PRINT_ERROR("sched_setattr");
 			exit(-1);
 		}
-	#else
+		#else
 		char launched[STRLEN_COMMAND];  /* String with launched command */
 
 		snprintf(launched, STRLEN_COMMAND,
 			"sudo chrt -f -p %d %d", prio, getpid());
 		system(launched);
 		printf("PID: %d\n", getpid());
+		#endif
 	#endif
 }
-
-/**************************************************************/
-//#define PROFILE
-#ifdef PROFILE
-typedef struct _profile {
-	void function();
-	unsigned int * function_calls;
-	double ** function_time;
-	double * function_total_time; 
-} profile;
-
-unsigned int n_func = 10;
-void * functions;
-functions = (void *) calloc(n_func, sizeof(void *));
-
-profile prof = {
-	.functions = functions;
-	.function_calls = (unsigned int) calloc(n_func, sizeof(unsigned int));
-	.function_time = (double **) calloc(n_func * 10000, sizeof(double));
-	.function_total_time = (double) calloc(n_func, sizeof(double));
-};
-
-void profile_function(int func, void * ret, );
-
-#endif
-/**************************************************************/

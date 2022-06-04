@@ -1422,6 +1422,8 @@ void mpc_status_save(const mpc_glpk * mpc, mpc_status * sol_st)
 void mpc_status_fprintf(FILE *f,
 			const mpc_glpk * mpc, const mpc_status * sol_st)
 {
+	if (f == NULL) 
+		return;
 	size_t i;
 	fprintf(f, "State\n");
 	for (i = 0; i < mpc->model->n; i++)
@@ -1445,4 +1447,30 @@ void mpc_status_fprintf(FILE *f,
 	fprintf(f, "Time: %f\n", *sol_st->time_bdg);
 	fprintf(f, "Primal status: %d\n", *sol_st->prim_stat);
 	fprintf(f, "Dual status: %d\n\n", *sol_st->dual_stat);
+}
+
+void mpc_get_status(char *status_buf, const mpc_glpk * mpc, const mpc_status * sol_st)
+{
+	#define BUF_LEN 400
+	size_t i;
+	char state[200];
+	char input[100];
+	char buf[20];
+	bzero(state, 200);
+	bzero(input, 100);
+	for (i = 0; i < mpc->model->n; i++) {
+		bzero(buf, 20);
+		snprintf(buf, 20, "\t%lf\t", sol_st->state[i]);
+		strcat(state, buf);
+	}
+	
+	for (i = 0; i < mpc->model->m; i++) {
+		snprintf(buf, 20, "\t%lf\t", sol_st->input[i]);
+		strcat(input, buf);
+	}
+	
+	snprintf(status_buf, BUF_LEN, "STATE:%s\tINPUT:%s\tSTEPS:\t%d\tTIME:\t%f\tPRIMAL STATUS:\t%d\tDUAL STATUS:\t%d", 
+		state, input,*sol_st->steps_bdg, *sol_st->time_bdg, *sol_st->prim_stat, *sol_st->dual_stat);
+	
+	
 }

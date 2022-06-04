@@ -27,7 +27,7 @@
 #include "../../include/mpc_interface.h"
 #define STRLEN_COMMAND 100
 
-#define PRINT_LOG
+//#define PRINT_LOG
 #define MPC_STATUS_X0_ONLY
 /*
  * Below are some #define which trigger something:
@@ -69,7 +69,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #define MARKER_FILE "/sys/kernel/tracing/trace_marker"
-#define BUF_LEN 100
+#define BUF_LEN 300
 
 
 /* Put this macro where debugging is needed */
@@ -210,10 +210,13 @@ int main(int argc, char * argv[]) {
 				MPC_CPU_ID);
 
 	/* Initializing the model */
+	#ifdef TRACING
 	print_mark("CLIENT: @model_mpc_startup# - start");
+	#endif
 	model_mpc_startup(&my_mpc, model_json);
+	#ifdef TRACING
 	print_mark("CLIENT: @model_mpc_startup# - end");
-
+	#endif
  	/* 
 	 * Shared memory is used to read state from and write input to
 	 * the  plant. Allocating  enough  space for  both the  struct
@@ -251,9 +254,13 @@ int main(int argc, char * argv[]) {
 	#endif
 
 	/* Allocating struct of solver status after problem defined */
+	#ifdef TRACING
 	print_mark("CLIENT: @mpc_status_alloc# - start");
+	#endif
 	mpc_st = mpc_status_alloc(&my_mpc);
+	#ifdef TRACING
 	print_mark("CLIENT: @mpc_status_alloc# - end");
+	#endif
 	#ifdef PRINT_PROBLEM
 		/* Save initial status */
 		mpc_status_save(&my_mpc, mpc_st);
@@ -320,13 +327,20 @@ int main(int argc, char * argv[]) {
 			data->stats_int[MPC_STATS_INT_OFFLOAD] = 1;
 			
 			/* Sending/receiving status to/from server */
-			 print_mark("CLIENT: @send# - start");
+			#ifdef TRACING
+			print_mark("CLIENT: @send# - start");
+			#endif
 			send(sockfd, mpc_st->block, mpc_st->size, 0);
-			 	print_mark("CLIENT: @send# - end");
-
-			 	print_mark("CLIENT: @recv# - start");
+			#ifdef TRACING
+			print_mark("CLIENT: @send# - end");
+			#endif
+			#ifdef TRACING
+			print_mark("CLIENT: @recv# - start");
+			#endif
 			recv(sockfd, mpc_st->block, mpc_st->size, 0);
-				print_mark("CLIENT: @recv# - end");
+			#ifdef TRACING
+			print_mark("CLIENT: @recv# - end");
+			#endif
 
 			/*  
 			 * After recv, the optimal input found by the
@@ -353,9 +367,27 @@ int main(int argc, char * argv[]) {
 				/* update initial state */
 				mpc_status_set_x0(&my_mpc, mpc_st);
 			#endif /* MPC_STATUS_X0_ONLY */
-			 	print_mark("CLIENT: @glp_simplex# - start");
+			#ifdef TRACING
+			char msg[BUF_LEN+40];
+			char status_buf[BUF_LEN];
+			bzero(msg, BUF_LEN+40);
+			bzero(status_buf, BUF_LEN);			
+			strcat(msg, "CLIENT: @glp_simplex# - start {");
+			mpc_get_status(status_buf, &my_mpc, mpc_st);
+			strcat(msg, status_buf);
+			strcat(msg, "}");
+			print_mark(msg);
+			#endif
 			glp_simplex(my_mpc.op, my_mpc.param);
-			    print_mark("CLIENT: @glp_simplex# - end");
+			#ifdef TRACING
+			bzero(msg, BUF_LEN+40);
+			bzero(status_buf, BUF_LEN);
+			strcat(msg, "CLIENT: @glp_simplex# - end {");
+			mpc_get_status(status_buf, &my_mpc, mpc_st);
+			strcat(msg, status_buf);
+			strcat(msg, "}");
+			print_mark(msg);
+			#endif
 			mpc_status_save(&my_mpc, mpc_st);
 		}
 		clock_gettime(CLOCK_REALTIME, &before_post);
@@ -479,7 +511,8 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-	#if SCHED_SETATTR_IN_SCHED_H
+	#ifdef ENABLE_CPU_PIN
+		#if SCHED_SETATTR_IN_SCHED_H
 		/* EB: TO BE TESTED */
 		struct sched_attr attr;
 		
@@ -491,13 +524,15 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 			PRINT_ERROR("sched_setattr");
 			exit(-1);
 		}
-	#else
+		#else
 		char launched[STRLEN_COMMAND];  /* String with launched command */
 		snprintf(launched, STRLEN_COMMAND,
 			"sudo chrt -f -p %d %d", prio, getpid());
 		system(launched);
+		#endif
 	#endif
 }
+
 void print_mark(const char *msg)
 {
 	char s[BUF_LEN];
