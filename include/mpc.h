@@ -363,4 +363,8 @@ void mpc_status_resume(mpc_glpk * mpc, const mpc_status * sol_st);
  */
 void mpc_status_fprintf(FILE *f,
 			const mpc_glpk * mpc, const mpc_status * sol_st);
+
+//TODO put doxygen comment
+void mpc_get_status(char * status_buf, const mpc_glpk * mpc, const mpc_status * sol_st);
+
 #endif  /* _MPC_H_ */
