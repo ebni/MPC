@@ -500,6 +500,7 @@ void term_handler(int signum)
 
 void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 {
+	#ifdef ENABLE_CPU_PIN
 	cpu_set_t  mask;
 
 	/* Set CPU affinity */
@@ -511,7 +512,6 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-	#ifdef ENABLE_CPU_PIN
 		#if SCHED_SETATTR_IN_SCHED_H
 		/* EB: TO BE TESTED */
 		struct sched_attr attr;

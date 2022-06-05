@@ -401,6 +401,7 @@ int main(int argc, char *argv[])
 	printf("MPC server up and running: listening behind port %d\n", port);
 
 	/* Pin server to a CPU different than client */
+	//printf("PRI_MAX: %d CPU_AFFINITY: %d\n", sched_get_priority_max(SCHED_FIFO), sched_getaffinity(0, sizeof(mask), &mask));
 	sched_set_prio_affinity(sched_get_priority_max(SCHED_FIFO), (MPC_CPU_ID-1)%2);
 	/*
 	CPU_ZERO(&my_mask);
@@ -671,6 +672,7 @@ int model_mpc_startup(mpc_glpk * mpc, json_object * in)
 
 void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 {
+	#ifdef ENABLE_CPU_PIN
 	cpu_set_t  mask;
 
 	/* Set CPU affinity */
@@ -682,7 +684,6 @@ void sched_set_prio_affinity(uint32_t prio, int cpu_id)
 	}
 
 	/* Set priority */
-	#ifdef ENABLE_CPU_PIN
 		#if SCHED_SETATTR_IN_SCHED_H
 		/* EB: TO BE TESTED */
 		struct sched_attr attr;

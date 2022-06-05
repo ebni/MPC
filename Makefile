@@ -178,7 +178,7 @@ trace_debug:
 filter: filter_server filter_ctrl
 
 filter_server:
-	$(PYTHON) $(REPORT)/trace_server.txt $(REPORT)/trace_server_sum.txt $(I)
+	$(PYTHON) $(REPORT)/trace_server.txt print $(REPORT)/trace_server_sum.csv 
 
 filter_ctrl:
-	$(PYTHON) $(REPORT)/trace_ctrl.txt $(REPORT)/trace_ctrl_sum.txt $(I)
+	$(PYTHON) $(REPORT)/trace_ctrl.txt print $(REPORT)/trace_ctrl_sum.csv 
