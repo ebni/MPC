@@ -1460,12 +1460,12 @@ void mpc_get_status(char *status_buf, const mpc_glpk * mpc, const mpc_status * s
 	bzero(input, 100);
 	for (i = 0; i < mpc->model->n; i++) {
 		bzero(buf, 20);
-		snprintf(buf, 20, "\t%lf\t", sol_st->state[i]);
+		snprintf(buf, 20, "\t%lf", sol_st->state[i]);
 		strcat(state, buf);
 	}
 	
 	for (i = 0; i < mpc->model->m; i++) {
-		snprintf(buf, 20, "\t%lf\t", sol_st->input[i]);
+		snprintf(buf, 20, "\t%lf", sol_st->input[i]);
 		strcat(input, buf);
 	}
 	
