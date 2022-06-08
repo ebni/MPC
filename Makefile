@@ -74,8 +74,12 @@ mpc_matlab.mexa64: $(SRC)/mpc_matlab.c
 	mex -O -v $(SRC)/mpc_matlab.c;
 	mv mpc_matlab.mexa64 $(OUT)/mpc_matlab.mexa64
 
+mpc_msg.mexa64: $(SRC)/mpc_msg.c
+	mex -O -v $(SRC)/mpc_msg.c;
+	mv mpc_msg.mexa64 $(OUT)/mpc_msg.mexa64
+
 .PHONY: matlab
-matlab: mpc_matlab.mexa64
+matlab: mpc_matlab.mexa64 mpc_msg.mexa64
 
 .PHONY: clean
 clean:
