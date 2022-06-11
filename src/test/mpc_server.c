@@ -541,6 +541,10 @@ int main(int argc, char *argv[])
 			bzero(msg, BUF_LEN+1000);
 			bzero(status_buf, BUF_LEN);
 			strcat(msg, "SERVER: @glp_simplex# - end {");
+			int nr_iterations_simplex = glp_get_it_cnt(my_mpc.op);
+			char aux_nr_it[BUF_LEN];
+			snprintf(aux_nr_it,40,"\tnumber of iterations %d\t",nr_iterations_simplex);
+			strcat(msg,aux_nr_it);
 			mpc_get_status(status_buf, &my_mpc, mpc_st);
 			strcat(msg, status_buf);
 			strcat(msg, "}");
