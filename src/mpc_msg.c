@@ -41,16 +41,30 @@ void print_mark(const char *msg)
  * @param nrhs size of prhs
  * @param prhs data received from matlab, corresponds to array of right-side output arguments
  */
-void mexFunction( int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[]){
-            
-                char input[128];
-                char msg[256];
-                bzero(msg,256);
-                strcat(msg,"MATLAB:\t");
-                mxGetString(prhs[0],input,sizeof(input)/sizeof(char));
-                input[(sizeof(input)/sizeof(char)-1)] = '\0';
-                puts("test mpc_msg XXXD");
-                printf("messaggio da mathlab=%s\n",input);
-                strcat(msg,input);
-                print_mark(msg);
-                  }
+void mexFunction( int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[])
+{            
+	char input[128];
+	char msg[256];
+	bzero(msg,256);
+	int shm_id;
+	shared_data *data;
+	
+	shm_id = shmget(MPC_SHM_KEY, 0, 0);
+	if (shm_id == -1) {
+		mexErrMsgIdAndTxt("MyToolbox:mpc_matlab:shmget",
+				  "Unable to open shared memory");
+	}
+	data = (shared_data *)shmat(shm_id, NULL, 0);
+	if (MPC_CTRL_MSG_IS_ENABLED(data)) {
+		MPC_CTRL_MSG_DISABLE(data);	
+	}
+	strcat(msg,"MATLAB:\t");
+	mxGetString(prhs[0],input,sizeof(input)/sizeof(char));
+	input[(sizeof(input)/sizeof(char)-1)] = '\0';
+	strcat(msg,input);
+	snprintf(data->ctrl_msg, 256, "%s", msg);
+	MPC_CTRL_MSG_ENABLE(data);
+	//printf("messaggio da mathlab=%s\n",input);
+	//print_mark(msg);
+	shmdt(data);
+}

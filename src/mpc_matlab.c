@@ -96,7 +96,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
 	if (nrhs == 2) {
 		shared_u = mxGetPr(prhs[1]);
 	//	printf("shared u: %lf\n", shared_u[0]);
-		data->u = *shared_u;
+		//data->shared_first_input = *shared_u;
 	}
 	//printf("size in: %d\tsize out: %d\n", nlhs, nrhs);
 	//shared_u = data->u;

@@ -39,19 +39,23 @@ REPORT = $(DOC)/report
 TRACE = /sys/kernel/tracing/
 #end directories
 
-#command parts
-TERMINAL = gnome-terminal --tab -- bash -i -c
-RECORD_CMD = sudo trace-cmd record -e sched_switch -F 
-REPORT_CMD = trace-cmd report -t | grep
-PYTHON = python3 $(REPORT)/filtro4.py
-#end command parts
-
 #files
 JSON = $(INPUT)/test.json
 SERVER = $(OUT)/mpc_server.out
 CTRL = $(OUT)/mpc_ctrl.out
 INDEX = $(DOC)/html/index.html
+FILTER = $(REPORT)/filter.py
+PLOT = $(REPORT)/plot.py
+SERVER_JSON = $(REPORT)/plot_server.json
 #end files
+
+#command parts
+TERMINAL = gnome-terminal --tab -- bash -i -c
+RECORD_CMD = sudo trace-cmd record -e sched_switch -F 
+REPORT_CMD = trace-cmd report -t | grep
+PYTHON = python3
+#end command parts
+
 mpc_server: mpc_server.o mpc.o dyn.o
 	gcc $(OBJ)/mpc_server.o $(OBJ)/mpc.o $(OBJ)/dyn.o $(LDFLAGS) -o $(SERVER)
 
@@ -182,7 +186,10 @@ trace_debug:
 filter: filter_server filter_ctrl
 
 filter_server:
-	$(PYTHON) $(REPORT)/trace_server.txt print $(REPORT)/trace_server_sum.csv 
+	$(PYTHON) $(FILTER) $(REPORT)/trace_server.txt json $(REPORT)/plot_server
 
 filter_ctrl:
-	$(PYTHON) $(REPORT)/trace_ctrl.txt print $(REPORT)/trace_ctrl_sum.csv 
+	$(PYTHON) $(FILTER) $(REPORT)/trace_ctrl.txt json $(REPORT)/plot_ctrl
+
+plot_server:
+	$(PYTHON) $(PLOT) $(SERVER_JSON) 

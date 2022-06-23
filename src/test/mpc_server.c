@@ -49,112 +49,6 @@
 #define MARKER_FILE "/sys/kernel/tracing/trace_marker"
 #define BUF_LEN 400
 
-// struct glp_prob
-// {     /* LP/MIP problem object */
-//       unsigned magic;
-//       /* magic value used for debugging */
-//       DMP *pool;
-//       /* memory pool to store problem object components */
-//       glp_tree *tree;
-//       /* pointer to the search tree; set by the MIP solver when this
-//          object is used in the tree as a core MIP object */
-// #if 0 /* 08/III-2014 */
-//       void *parms;
-//       /* reserved for backward compatibility */
-// #endif
-//       /*--------------------------------------------------------------*/
-//       /* LP/MIP data */
-//       char *name;
-//       /* problem name (1 to 255 chars); NULL means no name is assigned
-//          to the problem */
-//       char *obj;
-//       /* objective function name (1 to 255 chars); NULL means no name
-//          is assigned to the objective function */
-//       int dir;
-//       /* optimization direction flag (objective "sense"):
-//          GLP_MIN - minimization
-//          GLP_MAX - maximization */
-//       double c0;
-//       /* constant term of the objective function ("shift") */
-//       int m_max;
-//       /* length of the array of rows (enlarged automatically) */
-//       int n_max;
-//       /* length of the array of columns (enlarged automatically) */
-//       int m;
-//       /* number of rows, 0 <= m <= m_max */
-//       int n;
-//       /* number of columns, 0 <= n <= n_max */
-//       int nnz;
-//       /* number of non-zero constraint coefficients, nnz >= 0 */
-//       GLPROW **row; /* GLPROW *row[1+m_max]; */
-//       /* row[i], 1 <= i <= m, is a pointer to i-th row */
-//       GLPCOL **col; /* GLPCOL *col[1+n_max]; */
-//       /* col[j], 1 <= j <= n, is a pointer to j-th column */
-//       AVL *r_tree;
-//       /* row index to find rows by their names; NULL means this index
-//          does not exist */
-//       AVL *c_tree;
-//       /* column index to find columns by their names; NULL means this
-//          index does not exist */
-//       /*--------------------------------------------------------------*/
-//       /* basis factorization (LP) */
-//       int valid;
-//       /* the factorization is valid only if this flag is set */
-//       int *head; /* int head[1+m_max]; */
-//       /* basis header (valid only if the factorization is valid);
-//          head[i] = k is the ordinal number of auxiliary (1 <= k <= m)
-//          or structural (m+1 <= k <= m+n) variable which corresponds to
-//          i-th basic variable xB[i], 1 <= i <= m */
-// #if 0 /* 08/III-2014 */
-//       glp_bfcp *bfcp;
-//       /* basis factorization control parameters; may be NULL */
-// #endif
-//       BFD *bfd; /* BFD bfd[1:m,1:m]; */
-//       /* basis factorization driver; may be NULL */
-//       /*--------------------------------------------------------------*/
-//       /* basic solution (LP) */
-//       int pbs_stat;
-//       /* primal basic solution status:
-//          GLP_UNDEF  - primal solution is undefined
-//          GLP_FEAS   - primal solution is feasible
-//          GLP_INFEAS - primal solution is infeasible
-//          GLP_NOFEAS - no primal feasible solution exists */
-//       int dbs_stat;
-//       /* dual basic solution status:
-//          GLP_UNDEF  - dual solution is undefined
-//          GLP_FEAS   - dual solution is feasible
-//          GLP_INFEAS - dual solution is infeasible
-//          GLP_NOFEAS - no dual feasible solution exists */
-//       double obj_val;
-//       /* objective function value */
-//       int it_cnt;
-//       /* simplex method iteration count; increases by one on performing
-//          one simplex iteration */
-//       int some;
-//       /* ordinal number of some auxiliary or structural variable having
-//          certain property, 0 <= some <= m+n */
-//       /*--------------------------------------------------------------*/
-//       /* interior-point solution (LP) */
-//       int ipt_stat;
-//       /* interior-point solution status:
-//          GLP_UNDEF  - interior solution is undefined
-//          GLP_OPT    - interior solution is optimal
-//          GLP_INFEAS - interior solution is infeasible
-//          GLP_NOFEAS - no feasible solution exists */
-//       double ipt_obj;
-//       /* objective function value */
-//       /*--------------------------------------------------------------*/
-//       /* integer solution (MIP) */
-//       int mip_stat;
-//       /* integer solution status:
-//          GLP_UNDEF  - integer solution is undefined
-//          GLP_OPT    - integer solution is optimal
-//          GLP_FEAS   - integer solution is feasible
-//          GLP_NOFEAS - no integer solution exists */
-//       double mip_obj;
-//       /* objective function value */
-// };
-
 void print_mark(const char *msg);
 
 void print_mark(const char *msg)
@@ -330,8 +224,8 @@ int main(int argc, char *argv[])
 	#ifdef TEST_PARTIAL_OPTIMIZATION
 	struct timespec tic, toc;
 	double time;
-	int num;
 	#endif
+	int num;
 	//int model_fd;
 	//char * buffer;
 	//ssize_t size;
@@ -359,7 +253,7 @@ int main(int argc, char *argv[])
 	sigaction(SIGSEGV, &sa, NULL);
 	
 	model_json = init_model_json(argv[1]);
-	
+	sleep(3);
 	/* Opening JSON model of the plant */
 	/*
 	if ((model_fd = open(argv[1], O_RDONLY)) == -1) {
@@ -437,6 +331,7 @@ int main(int argc, char *argv[])
 		#endif
 
 		#ifdef TRACING
+		printf("k:%ld\n", k);
 		print_mark("SERVER: @recvfrom# - start");		
 		#endif
 
@@ -532,22 +427,17 @@ int main(int argc, char *argv[])
 			print_mark("SERVER: @mpc_status_set_x0# - end");
 			char msg[BUF_LEN+1000];
 			char status_buf[BUF_LEN];
+			num = glp_get_it_cnt(my_mpc.op);
 			print_mark("SERVER: @glp_simplex# - start");
 			#endif			
 
 			glp_simplex(my_mpc.op, my_mpc.param);
 
 			#ifdef TRACING
-			bzero(msg, BUF_LEN+1000);
+			num = glp_get_it_cnt(my_mpc.op) - num;
 			bzero(status_buf, BUF_LEN);
-			strcat(msg, "SERVER: @glp_simplex# - end {");
-			int nr_iterations_simplex = glp_get_it_cnt(my_mpc.op);
-			char aux_nr_it[BUF_LEN];
-			snprintf(aux_nr_it,40,"\tnumber of iterations %d\t",nr_iterations_simplex);
-			strcat(msg,aux_nr_it);
 			mpc_get_status(status_buf, &my_mpc, mpc_st);
-			strcat(msg, status_buf);
-			strcat(msg, "}");
+			snprintf(msg, BUF_LEN+1000, "SERVER: @glp_simplex# - end {%s\tITERATION COUNT:\t%d}", status_buf, num);
 			print_mark(msg);			
 			#endif		
 			

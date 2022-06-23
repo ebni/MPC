@@ -322,6 +322,11 @@ int main(int argc, char * argv[]) {
 		#endif /* MPC_STATUS_X0_ONLY */
 		memcpy(mpc_st->state, shared_state,
 		       sizeof(*shared_state)*data->state_num);
+		if (MPC_CTRL_MSG_IS_ENABLED(data)){
+			print_mark(data->ctrl_msg);
+			printf("%s\n", data->ctrl_msg);
+			MPC_CTRL_MSG_DISABLE(data);
+		}
 		if (data->flags & MPC_OFFLOAD) {
 			/* MPC offloaded to server */
 			data->stats_int[MPC_STATS_INT_OFFLOAD] = 1;
