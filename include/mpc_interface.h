@@ -48,7 +48,7 @@
 	vector is passed as parameter and 
 	is used to predict u1 */
 #define MPC_PREDICTIVE_MODE 0x02 
-
+#define MPC_CTRL_MSG_E 0x04
 /* Statistics */
 #define MPC_STATS_DBL_LEN  1   /* how many double statistics */
 #define MPC_STATS_INT_LEN  1   /* how many int statistics */
@@ -68,7 +68,6 @@ typedef struct shared_data {
 	sem_t  sems[MPC_SEM_NUM];    /* semaphores to regulate communication */
 	size_t state_num;            /* number of states */
 	size_t input_num;            /* number of inputs */
-	double u;						 /*test value 42*/
 	#if MPC_STATS_INT_LEN
 	int stats_int[MPC_STATS_INT_LEN];
 	#endif
@@ -78,14 +77,18 @@ typedef struct shared_data {
 	char ctrl_msg[MSG_LEN];
 	uint32_t flags;
 	/*
-	 * The shared memory then continues with two arrays of double
+	 * The shared memory then continues with three arrays of double
 	 * whose size is dynamic:
 	 *
 	 *   double state[state_num]
 	 *     used by the application to communicate the state to MPC
 	 *
+	 *   double first_input[input_num]
+	 *     used by the application to communicate the first input to MPC
+	 * 
 	 *   double input[input_num]
 	 *     used by MPC to communicate the input to the application
+	 * 
 	 */
 } shared_data;
 
@@ -107,5 +110,16 @@ typedef struct shared_data {
 #define MPC_PREDICTIVE_MODE_ENABLE(var) var->flags |= MPC_PREDICTIVE_MODE;
 #define MPC_PREDICTIVE_MODE_DISABLE(var) var->flags &= ~((uint32_t)MPC_PREDICTIVE_MODE);
 #define MPC_PREDICTIVE_MODE_IS_ENABLED(var) (var->flags & MPC_PREDICTIVE_MODE)
+
+/*
+ * The following three macros rispectively enable, disable, and check, 
+ * the ctrl_msg. The  macro parameter is the "var" is
+ * a pointer to a struct share_data  which should be declared  by the
+ * user. 
+ */
+#define MPC_CTRL_MSG_ENABLE(var) var->flags |= MPC_CTRL_MSG_E;
+#define MPC_CTRL_MSG_DISABLE(var) var->flags &= ~((uint32_t)MPC_CTRL_MSG_E);
+#define MPC_CTRL_MSG_IS_ENABLED(var) (var->flags & MPC_CTRL_MSG_E)
+
 
 #endif /* _MPC_INTERFACE_H_ */
